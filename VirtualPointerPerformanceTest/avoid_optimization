@@ -1,0 +1,13 @@
+Vptr test: depth = 1; packet size = 5120; Elapsed time = 3456904800
+Vptr test: depth = 1; packet size = 50000; Elapsed time = 2829735500
+Vptr test: depth = 1; packet size = 500000; Elapsed time = 2764328300
+Vptr test: depth = 1; packet size = 5120000; Elapsed time = 3077627000
+Vptr test: depth = 1; packet size = 5120; Elapsed time = 3360427000
+Vptr test: depth = 1; packet size = 50000; Elapsed time = 2811909600
+Vptr test: depth = 1; packet size = 500000; Elapsed time = 2750344200
+Vptr test: depth = 1; packet size = 5120000; Elapsed time = 2943628900
+Vptr test: depth = 1; packet size = 5120; Elapsed time = 3355015200
+Vptr test: depth = 1; packet size = 50000; Elapsed time = 2793973200
+Vptr test: depth = 1; packet size = 500000; Elapsed time = 2757778000
+Vptr test: depth = 1; packet size = 5120000; Elapsed time = 2917662500
+Vptr test: depth = 1; packet size = 5120; Elapsed time = 3359347400
