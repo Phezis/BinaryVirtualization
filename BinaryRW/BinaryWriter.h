@@ -94,9 +94,9 @@ void BinaryWriter<T>::setReverseBytes(const reverse_bytes_t reverseBytes)
 }
 
 template <class T>
-bool BinaryWriter<T>::writeBits(std::size_t count, std::size_t value)
+bool BinaryWriter<T>::writeBits(const std::size_t count, std::size_t value)
 {
-	constexpr uint16_t sizeOfSizeTInBits = multiplyBy8(sizeof(std::size_t));
+	constexpr uint16_t sizeOfSizeTInBits = static_cast<uint16_t>(multiplyBy8(sizeof(std::size_t)));
 	if (count > sizeOfSizeTInBits)
 	{
 		throw std::invalid_argument("Attempt to write more bits than size_t could contain");
@@ -110,7 +110,7 @@ bool BinaryWriter<T>::writeBits(std::size_t count, std::size_t value)
 	if (count + m_bitPosInCache > sizeOfSizeTInBits)
 	{
 		const uint16_t bitsToThisCache = sizeOfSizeTInBits - m_bitPosInCache;
-		const uint16_t bitsToNextCache = count - bitsToThisCache;
+		const auto bitsToNextCache = static_cast<uint16_t>(count - bitsToThisCache);
 		m_cache |= (value >> bitsToNextCache) & LITTLE_BITS[bitsToThisCache];
 		m_bitPosInCache = sizeOfSizeTInBits;
 		flush();
@@ -160,7 +160,7 @@ template <class T>
 void BinaryWriter<T>::flush()
 {
 	const auto cacheInBytes = reinterpret_cast<uint8_t*>(&m_cache);
-	const uint16_t lastByteToFlush = divideBy8(m_bitPosInCache + BITS_IN_BYTE - 1);
+	const auto lastByteToFlush = static_cast<uint16_t>(divideBy8(m_bitPosInCache + BITS_IN_BYTE - 1));
 	if (m_typedData)
 	{
 		if (m_reverseBytes)

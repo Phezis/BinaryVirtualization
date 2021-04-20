@@ -123,7 +123,7 @@ VirtualPointer<T> operator-(VirtualPointer<T> ptr, const std::size_t& shift);
 template <typename T>
 bool VirtualPointer<T>::outOfRange() const
 {
-	return m_chunks->empty() || (m_curChunkIdx + 1 == m_chunks->size() && m_curTIdx >= m_curChunkSize);
+	return m_chunks->empty() || (m_curChunkIdx + 1 == m_chunks->size() && static_cast<size_t>(m_curTIdx) >= m_curChunkSize);
 }
 
 
@@ -138,7 +138,7 @@ void VirtualPointer<T>::revalidateIndexes()
 	{
 		m_curChunkSize = (*m_chunks)[m_curChunkIdx].second;
 	}
-	while (m_curChunkIdx < m_chunks->size() - 1 && m_curTIdx >= m_curChunkSize)
+	while (m_curChunkIdx < m_chunks->size() - 1 && static_cast<size_t>(m_curTIdx) >= m_curChunkSize)
 	{
 		m_curTIdx -= m_curChunkSize;
 		++m_curChunkIdx;
@@ -155,7 +155,7 @@ bool VirtualPointer<T>::outOfRangeWithRevalidateIndexes()
 		return true;
 	}
 	revalidateIndexes();
-	return m_curChunkIdx + 1 == m_chunks->size() && m_curTIdx >= m_curChunkSize;
+	return outOfRange();
 }
 
 template <typename T>
@@ -647,7 +647,7 @@ VirtualPointer<T>& VirtualPointer<T>::operator-=(const std::size_t& shift)
 {
 	std::size_t localShift = shift;
 	m_size += shift * sizeof(T);
-	while (m_curTIdx < localShift)
+	while (static_cast<size_t>(m_curTIdx) < localShift)
 	{
 		if (m_curChunkIdx)
 		{
@@ -659,7 +659,7 @@ VirtualPointer<T>& VirtualPointer<T>::operator-=(const std::size_t& shift)
 		else
 		{
 			localShift -= m_curTIdx;
-			m_curTIdx = -localShift;
+			m_curTIdx = -static_cast<signed_size_t>(localShift);
 			return *this;
 		}
 	}
@@ -732,7 +732,7 @@ void VirtualPointer<T>::addChunk(T* ptr, std::size_t length)
 				tryShiftChunkIdx = false;
 			}
 			m_chunks->emplace_back(std::pair<T*, std::size_t>(ptr, length));
-			if (m_curTIdx < m_curChunkSize)
+			if (static_cast<size_t>(m_curTIdx) < m_curChunkSize)
 			{
 				if (tryShiftChunkIdx)
 				{
@@ -795,7 +795,7 @@ void VirtualPointer<T>::addChunk(const VirtualPointer& src, std::size_t count)
 				curTIdx -= (*m_chunks)[curChunkIdx].second;
 			}
 			++curChunkIdx;
-			if (curTIdx < m_curChunkSize)
+			if (curTIdx < static_cast<signed_size_t>(m_curChunkSize))
 			{
 				curOutOfRange = false;
 			}
@@ -1034,7 +1034,7 @@ int memcmp(const void* dest, const VirtualPointer<T>& src, std::size_t count)
 template <typename T>
 void VirtualPointer<T>::toNextElement()
 {
-	if (m_curTIdx + 1 < m_curChunkSize || m_curChunkIdx + 1 >= m_chunks->size())
+	if (m_curTIdx + 1 < 0 || m_curTIdx + 1 < static_cast<signed_size_t>(m_curChunkSize) || m_curChunkIdx + 1 >= m_chunks->size())
 	{
 		++m_curTIdx;
 	}
