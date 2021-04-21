@@ -21,18 +21,18 @@ public:
 
 	~VirtualPointer() noexcept = default;
 
-	VirtualPointer& operator=(const VirtualPointer& other);
-	VirtualPointer& operator=(VirtualPointer&& other) noexcept;
+	VirtualPointer& operator=(const VirtualPointer& other) = default;
+	VirtualPointer& operator=(VirtualPointer&& other) noexcept = default;
 
 	VirtualPointer& operator++();
 	VirtualPointer operator++(int);
 
-	VirtualPointer& operator+=(const std::size_t& shift);
+	VirtualPointer& operator+=(std::size_t shift);
 
 	VirtualPointer& operator--();
 	VirtualPointer operator--(int);
-
-	VirtualPointer& operator-=(const std::size_t& shift);
+	
+	VirtualPointer& operator-=(std::size_t shift);
 
 	T& operator[](std::size_t idx);
 	const T& operator[](std::size_t idx) const;
@@ -42,11 +42,11 @@ public:
 	void addChunk(T* ptr, std::size_t length);
 	void addChunk(const VirtualPointer& src, std::size_t count);
 
-	std::size_t size() const;
+	std::size_t bytesRemaining() const;
 
 	void clear();
 
-	bool isOverflow();
+	bool isOverflow() const;
 
 	template<typename T, typename V>
 	friend VirtualPointer<T>& memset(VirtualPointer<T>& dest, const V& value, std::size_t count);
@@ -61,7 +61,7 @@ public:
 	friend void* memcpy(void* dest, const VirtualPointer<T>& src, std::size_t count);
 
 
-	// Attention! All memmove functions can allocate an additional amount of memory of the count size!
+	// Attention! All memmove functions can allocate an additional amount of memory of the count bytesRemaining!
 	template<typename T>
 	friend VirtualPointer<T>& memmove(VirtualPointer<T>& dest, const VirtualPointer<T>& src, std::size_t count);
 
@@ -88,9 +88,9 @@ private:
 	// contains the index of a current chunk in chunks collection
 	std::size_t m_curChunkIdx = 0;
 	// contains the index of a T-type atom
-	// can be more than current chunk size
+	// can be more than current chunk bytesRemaining
 	signed_size_t m_curTIdx = 0;
-	// a size of the current chunk
+	// a bytesRemaining of the current chunk
 	std::size_t m_curChunkSize = 0;
 	// contains the number of remaining bytes
 	std::size_t m_size = 0;
@@ -193,36 +193,6 @@ VirtualPointer<T>::VirtualPointer(VirtualPointer&& other) noexcept :
 }
 
 template <typename T>
-VirtualPointer<T>& VirtualPointer<T>::operator=(const VirtualPointer<T>& other)
-{
-	if (this != &other)
-	{
-		m_chunks = other.m_chunks;
-		m_pCurrentChunk = other.m_pCurrentChunk;
-		m_curChunkIdx = other.m_curChunkIdx;
-		m_curTIdx = other.m_curTIdx;
-		m_curChunkSize = other.m_curChunkSize;
-		m_size = other.m_size;
-	}
-	return *this;
-}
-
-template <typename T>
-VirtualPointer<T>& VirtualPointer<T>::operator=(VirtualPointer<T>&& other) noexcept
-{
-	if (this != &other)
-	{
-		m_chunks = std::move(other.m_chunks);
-		std::exchange(m_pCurrentChunk, other.m_pCurrentChunk);
-		std::exchange(m_curChunkIdx, other.m_curChunkIdx);
-		std::exchange(m_curTIdx, other.m_curTIdx);
-		std::exchange(m_curChunkSize, other.m_curChunkSize);
-		std::exchange(m_size, other.m_size);
-	}
-	return *this;
-}
-
-template <typename T>
 VirtualPointer<T>& VirtualPointer<T>::operator++()
 {
 	toNextElement();
@@ -238,7 +208,7 @@ VirtualPointer<T> VirtualPointer<T>::operator++(int)
 }
 
 template <typename T>
-VirtualPointer<T>& VirtualPointer<T>::operator+=(const std::size_t& shift)
+VirtualPointer<T>& VirtualPointer<T>::operator+=(const std::size_t shift)
 {
 	std::size_t localShift = shift;
 	m_size -= shift * sizeof(T);
@@ -643,7 +613,7 @@ VirtualPointer<T> VirtualPointer<T>::operator--(int)
 }
 
 template <typename T>
-VirtualPointer<T>& VirtualPointer<T>::operator-=(const std::size_t& shift)
+VirtualPointer<T>& VirtualPointer<T>::operator-=(const std::size_t shift)
 {
 	std::size_t localShift = shift;
 	m_size += shift * sizeof(T);
@@ -810,7 +780,7 @@ void VirtualPointer<T>::addChunk(const VirtualPointer& src, std::size_t count)
 }
 
 template <typename T>
-std::size_t VirtualPointer<T>::size() const
+std::size_t VirtualPointer<T>::bytesRemaining() const
 {
 	return m_size;
 }
@@ -827,9 +797,9 @@ inline void VirtualPointer<T>::clear()
 }
 
 template <typename T>
-inline bool VirtualPointer<T>::isOverflow()
+inline bool VirtualPointer<T>::isOverflow() const
 {
-	return outOfRangeWithRevalidateIndexes();
+	return outOfRange();
 }
 
 template <typename T>

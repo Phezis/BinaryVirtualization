@@ -4,12 +4,24 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 16.0.31005.135
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BinaryRWTest", "BinaryRWTest\BinaryRWTest.vcxproj", "{BDFB7E30-429A-4C73-9BEB-BEA2B41B96A3}"
+	ProjectSection(ProjectDependencies) = postProject
+		{B052253B-D20C-463F-9525-5102CB281034} = {B052253B-D20C-463F-9525-5102CB281034}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VirtualPointerTest", "VirtualPointerTest\VirtualPointerTest.vcxproj", "{543DE60C-715D-4B8F-96DE-42AA038FAEF1}"
+	ProjectSection(ProjectDependencies) = postProject
+		{135AC057-9538-40B2-90F9-86732030E2B3} = {135AC057-9538-40B2-90F9-86732030E2B3}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VirtualPointerPerformanceTest", "VirtualPointerPerformanceTest\VirtualPointerPerformanceTest.vcxproj", "{93ADD822-A910-4302-827D-260A577F1E8B}"
+	ProjectSection(ProjectDependencies) = postProject
+		{135AC057-9538-40B2-90F9-86732030E2B3} = {135AC057-9538-40B2-90F9-86732030E2B3}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BinaryRW", "BinaryRW\BinaryRW.vcxproj", "{B052253B-D20C-463F-9525-5102CB281034}"
+	ProjectSection(ProjectDependencies) = postProject
+		{135AC057-9538-40B2-90F9-86732030E2B3} = {135AC057-9538-40B2-90F9-86732030E2B3}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VirtualPointer", "VirtualPointer\VirtualPointer.vcxproj", "{135AC057-9538-40B2-90F9-86732030E2B3}"
 EndProject

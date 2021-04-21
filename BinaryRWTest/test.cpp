@@ -174,8 +174,8 @@ TEST(TestBinaryReader, TestSkipping) {
 	EXPECT_EQ(0xC1, val);
 	EXPECT_FALSE(reader.skipBits(2));
 
-	/*reader.setData(memory + 1, size - 2);
-	EXPECT_TRUE(reader.skipBits((size - 3) * 8));
+	/*reader.setData(memory + 1, bytesRemaining - 2);
+	EXPECT_TRUE(reader.skipBits((bytesRemaining - 3) * 8));
 	val = 0;
 	EXPECT_TRUE(reader.readBits(8, val));
 	EXPECT_EQ(0xC1, val);*/
@@ -209,8 +209,8 @@ TEST(TestBinaryReader, TestSkipping) {
 	EXPECT_FALSE(reader.skipBits(2));
 
 	// the test situation is no longer supported
-	/*reader.setData(memory + 1, size - 2);
-	EXPECT_TRUE(reader.skipBits((size - 3) * 8));
+	/*reader.setData(memory + 1, bytesRemaining - 2);
+	EXPECT_TRUE(reader.skipBits((bytesRemaining - 3) * 8));
 	val = 0;
 	reader.readBits(8, val);
 	EXPECT_EQ(0x83, val);*/
@@ -369,13 +369,13 @@ TEST(TestBinaryReader, TestLooking) {
 }
 #else
 TEST(TestBinaryReader, TestLooking) {
-	size_t size = sizeof(size_t) * 8;
+	size_t bytesRemaining = sizeof(size_t) * 8;
 	uint8_t onlyZeroes[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	uint8_t onlyOnes[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 	BinaryReader<uint8_t> reader{ false };
 	BB_SET
 
-		reader.setData(onlyZeroes, size);
+		reader.setData(onlyZeroes, bytesRemaining);
 
 	size_t value;
 
@@ -401,7 +401,7 @@ TEST(TestBinaryReader, TestLooking) {
 	EXPECT_TRUE(reader.lookBits(9, value));
 	EXPECT_EQ(0, value);
 
-	reader.setData(onlyOnes, size);
+	reader.setData(onlyOnes, bytesRemaining);
 
 	EXPECT_TRUE(reader.lookBits(1, value));
 	EXPECT_EQ(1, value);

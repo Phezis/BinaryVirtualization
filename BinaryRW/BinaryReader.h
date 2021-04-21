@@ -43,7 +43,7 @@ private:
 	VirtualPointer<T> m_vData{};
 	// to return to the current data pointer excluding the cache
 	std::size_t m_lastCacheSize = 0;
-	// remain data size in bits
+	// remain data bytesRemaining in bits
 	uint64_t m_remainDataSize = 0;
 	std::size_t m_cache = 0;
 	uint16_t m_bitPos = 0;

@@ -2,6 +2,8 @@
 #include "gtest/gtest.h"
 #include "VirtualPointer.h"
 
+using std::size_t;
+
 /*
 *
 *
@@ -9,6 +11,7 @@
 *
 *
 */
+
 
 TEST(Dereferensing, dereferensedDataCorrectness) {
 	const size_t count = 8;
@@ -3069,4 +3072,65 @@ TEST(AssignOperatorDontCopyChunksButCopyPtr, exceptions) {
 	src_ptr += 2;
 	EXPECT_NO_THROW(*src_ptr);
 	++src_ptr;
+}
+
+
+TEST(ComeBackFromOutOfBound, PositiveOutOfBound) {
+	
+	constexpr size_t count = 128;
+	size_t src_arr[count];
+
+	for (size_t i = 0; i < count; ++i) {
+		src_arr[i] = i;
+	}
+
+	VirtualPointer<size_t> src_ptr = VirtualPointer<size_t>();
+
+	for(size_t size = 1, shift = 0; size < count/2; size *= 2)
+	{
+		EXPECT_NO_THROW(src_ptr.addChunk(src_arr + shift, size));
+		shift += size;
+	}
+
+	EXPECT_NO_THROW(src_ptr += count);
+	EXPECT_NO_THROW(++src_ptr);
+	EXPECT_NO_THROW(src_ptr++);
+	EXPECT_NO_THROW(src_ptr += count);
+	
+	EXPECT_NO_THROW(src_ptr -= 2*count);
+	EXPECT_NO_THROW(--src_ptr);
+	EXPECT_NO_THROW(src_ptr--);
+
+	EXPECT_EQ(0, *src_ptr);
+}
+
+
+TEST(ComeBackFromOutOfBound, NegativeOutOfBound) {
+	
+	constexpr size_t count = 128;
+	size_t src_arr[count];
+
+	for (size_t i = 0; i < count; ++i) {
+		src_arr[i] = i;
+	}
+
+	VirtualPointer<size_t> src_ptr = VirtualPointer<size_t>();
+
+	for(size_t size = 1, shift = 0; size < count/2; size *= 2)
+	{
+		EXPECT_NO_THROW(src_ptr.addChunk(src_arr + shift, size));
+		shift += size;
+	}
+
+
+	EXPECT_NO_THROW(src_ptr -= count);
+	EXPECT_NO_THROW(--src_ptr);
+	EXPECT_NO_THROW(src_ptr--);
+	EXPECT_NO_THROW(src_ptr -= count);
+	
+	EXPECT_NO_THROW(++src_ptr);
+	EXPECT_NO_THROW(src_ptr++);
+	EXPECT_NO_THROW(src_ptr += 2*count);
+
+	EXPECT_EQ(0, *src_ptr);
 }

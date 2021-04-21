@@ -11,7 +11,7 @@
 
 namespace 
 {
-    constexpr char AVOID_OPTIMIZATION_FILE_NAME[] = "avoid_optimization";
+    constexpr char AVOID_OPTIMIZATION_FILE_NAME[] = "avoid_optimization.csv";
 #if defined(_M_X64) || defined(__amd64__)
 	constexpr char OUT_FILE_NAME[] = "results_x64.csv";
 	constexpr char ARCHITECTURE[] = "x64";
@@ -82,7 +82,7 @@ int main()
                             vptrResults[resultId] = std::min(vptrResults[resultId], test.getVptrDuration().count());
                         }
                         std::cout << "Depth = " << depth << std::endl;
-                        std::cout << "Packet size = " << streamConstitute.first << std::endl;
+                        std::cout << "Packet bytesRemaining = " << streamConstitute.first << std::endl;
                         std::cout << "\tCopy time = " << copyResults[resultId] << std::endl;
                         std::cout << "\tVptr time = " << vptrResults[resultId] << std::endl;
 
@@ -105,7 +105,7 @@ int main()
                 }
                 resultsStream << std::endl;
                 std::cout << std::endl;
-                // print packet size line
+                // print packet bytesRemaining line
                 resultsStream << ";";
                 std::cout << ";";
                 for (size_t i = 0; i < depths.size(); ++i)
