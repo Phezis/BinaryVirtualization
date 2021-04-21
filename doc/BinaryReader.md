@@ -1,0 +1,163 @@
+# Binary Reader
+---
+
+## Вкратце о классе
+---
+ВАЖНО! На текущий момент библиотека работоспособна только при работе с типом T размера 1 байт.
+
+BinaryReader предоставляет возможность читать произвольное количество бит из участка памяти, но не больше, чем вмещает в себя машинное слово. 
+Класс умеет учитывать порядок байт в слове и порядок бит в байте - ***little endian*** и ***big endian***. Ответственность за выбор режима лежит на пользователе - нужно вручную указать, нужно ли менять порядок бит и/или байт исходя из типа обрабатываемой информации. Например, если код компилируется для работы на little endian машине с данными из сети, которые записаны в big endian формате, то необходимо выставить режим работы с заменой порядка байт в слове.
+Перед началом работы объекту класса необходимо передать указатель на начало читаемой области памяти и ее размер. Важно, что размер этой области не должен превышать (size_t::max / 8) байт.
+Переданный участок памяти должен быть действительным на протяжении всей жизни объекта.
+После инициализации можно производить чтение. Читающие операции принимают количество бит, которые необходимо прочитать и переменную, в которую необходимо записать результат. 
+Читать можно двумя способами: с переходом к следующим битам и без перехода. В первом случае каждое новое чтение будет читать новые, следующие за предыдущими, биты. Во втором случае последующее чтение будет производиться над теми же битами, что и на предыдущем чтении.
+Помимо чтения можно пропустить произвольное количество бит - они не будут прочитаны.
+
+## Интерфейс
+---
+### Пользовательское определение типов
+Для класса определены следующие типы:
+* using reverse_bytes_t = bool;
+* using reverse_bits_t = bool;
+
+Для данных типов определены константы:
+* constexpr reverse_bytes_t REVERSE_BYTES = true;
+* constexpr reverse_bits_t REVERSE_BITS = true;
+
+Для обратного эффекта использовать !REVERSE_*
+
+### Конструктор
+    BinaryReader();                                                             (1)
+    explicit BinaryReader(reverse_bytes_t reverseBytes);                        (2)
+    BinaryReader(reverse_bytes_t reverseBytes, reverse_bits_t reverseBits);     (3)
+
+1) Создает неинициализированный обрабатываемой памятью объект, в режиме работы с обратным порядком байт в слове и с сохранением порядка бит в байте.
+2) Создает неинициализированный обрабатываемой памятью объект, в режиме работы с пользовательским порядком байт в слове и с сохранением порядка бит в байте.
+3) Создает неинициализированный обрабатываемой памятью объект, в режиме работы с пользовательским порядком байт в слове и  с пользовательским порядком бит в байте.
+
+### Деструктор
+    ~BinaryReader() noexcept;       (1)
+    
+1) Определен стандартный деструктор.
+
+### Выбор режима чтения
+    void setReverseBits(reverse_bits_t val);        (1)
+    void setReverseBytes(reverse_bytes_t val);      (2)
+    
+1) Метод устанавливает режим перестановки бит в val. После исполнения метода до следующего вызова setData поведение не определено. При значении, установленном в REVERSE_BITS, во время чтения биты в байтах, считаных из заданной области, будут переставляться.
+2) Метод устанавливает режим перестановки байт в val. После исполнения метода до следующего вызова setData поведение не определено. При значении, установленном в REVERSE_BYTES, область интерпретируется как область с порядком байт, противоположным порядку текущей архитектуры – во время чтения машинного слова из области байты в нем будут переставляться.
+
+### Выбор обрабатываемой памяти
+    void setData(const T* address, std::size_t sizeInBytes);                    (1)
+    void setData(const VirtualPointer<T>& address, std::size_t sizeInBytes);    (2)
+
+1) Запоминает переданный фрагмент и его размер. Предыдущий фрагмент забывается.
+2) Запоминает переданный фрагмент в виде виртуального указателя и его размер. Предыдущий фрагмент забывается.
+
+### Работа с битами
+
+    template <class V>
+    bool readBits(std::size_t count, V& value);                             (1)
+    bool readBits(std::size_t count, std::size_t& value);                   (2)
+    bool lookBits(std::size_t count, std::size_t& value) const;             (3)
+    bool skipBits(std::size_t count);                                       (4)
+
+1) Метод читает count битов из переданной области памяти и записывает в переменную value. Последующее чтение продолжит читать с того бита, который следовал за последним считанным. При попытке прочитать больше бит, чем осталось, не выполняет чтение и возвращает false. Тип value должен быть интегральным, иначе поведение не определено. Если count не положительный, больше, чем размер V в битах, или больше, чем чем размер машинного слова в битах, то поведение не определено. 
+2) Аналогичен (1).
+3) Метод просматривает count битов из переданной области памяти и записывает в переменную value. Последующее чтение будет произведено с той же позиции, что и предыдущее. При попытке прочитать больше бит, чем осталось, не выполняет чтение и возвращает false. Тип value должен быть интегральным, иначе поведение не определено. Если count не положительный, больше, чем размер V в битах, или больше, чем чем размер машинного слова в битах, то поведение не определено.
+4) Метод пропускает следующие после последнего прочитанного (или пропущенного) бита count бит в заранее заданной области. Последующее чтение продолжит читать с того бита, который следовал за последним из пропущенных. При попытке пропустить больше бит, чем осталось, не выполняет пропуск и возвращает false.
+
+### Дополнительные методы
+
+    T* getCurrentDataPtr();                                 (1)
+    VirtualPointer<T> getCurrentVirtualDataPtr();           (2)
+
+    std::size_t getReadBitsCount() const;                   (3)
+    void resetReadBitsCount();                              (4)
+
+1. Возвращает указатель на элемент, которому принадлежит бит, следующий за последним прочитанным. Если объект инициализирован виртуальным указателем, поведение не определено.
+2. Возвращает виртуальный указатель на элемент, которому принадлежит бит, следующий за последним прочитанным. Если объект инициализирован стандартным указателем, поведение не определено.
+3. Возвращает количество прочитанных/пропущенных бит с момента последней инициализации фрагментом или с момента последнего вызова (4).
+4. Обнуляет количество прочитанных бит.
+ 
+(3) и (4) позволяют следить за количеством прочитанных бит. Может быть полезно в случаях, когда исходя из количества и содержимого прочитанных данных определяется, какое количество следующих бит необходимо пропустить.
+
+## Потокобезопасность
+---
+Класс не является потокобезопасным.
+
+## Использование
+---
+### Подключение
+Для использования библиотеки необходимо использовать (добавить в проект) следующие заголовочные файлы:
+- Exceptions.h
+- VirtualPointer.h
+- BitMask.h
+- Reverser.h
+
+А также статическую библиотеку BinaryRW.lib.
+
+### Пример использования
+    #include <cstdlib>
+    #include <cstddef>
+    #include <iostream>
+    #include <BinaryReader.h>
+    #include <VirtualPointer.h>
+    
+    using std::size_t;
+    
+    int main()
+    {
+        // Test is correct if it runs on the little endian architecture
+        constexpr auto chunkSize = 9;
+        uint8_t chunk[chunkSize] = { 0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
+        BinaryReader<uint8_t> reader(REVERSE_BYTES, !REVERSE_BITS);
+        reader.setData(chunk, chunkSize);
+    
+        size_t storage;
+        reader.readBits(12, storage);
+        std::cout << "First 12 bits is " << storage << std::endl;
+        
+        reader.readBits(3, storage);
+        std::cout << "Next 3 bits is " << storage << std::endl;
+        
+        reader.readBits(1, storage);
+        std::cout << "Last bit of the first 16 bits is " << storage << std::endl;
+        
+        reader.skipBits(6);
+        reader.lookBits(2, storage);
+        std::cout << "Look at the last 2 bits of the 3rd byte. It is " << storage << std::endl;
+        reader.readBits(2, storage);
+        std::cout << "And read the last 2 bits of the 3rd byte. It is " << storage << " again" << std::endl;
+    
+        std::cout << "From the beginning 3 bytes were read. They are equal to "
+            << reader.getReadBitsCount() << " bits" << std::endl;
+        reader.resetReadBitsCount();
+    
+        reader.skipBits(40);
+        reader.readBits(8, storage);
+        std::cout << "The last byte is " << storage << std::endl;
+        std::cout << reader.getReadBitsCount() << " bits from the last checkpoint were read and skipped" << std::endl;
+    
+        VirtualPointer<uint8_t> vChunk{};
+        vChunk.addChunk(chunk, chunkSize);
+    
+        reader.setData(vChunk, chunkSize);
+        reader.skipBits(8 * 4);
+        reader.readBits(8, storage);
+        std::cout << "Usage of VirtualPointer in the BinaryReader is same: 5th byte is " << storage << std::endl;
+        
+        return EXIT_SUCCESS;
+    }
+
+Вывод:
+
+    First 12 bits is 0
+    Next 3 bits is 0
+    Last bit of the first 16 bits is 1
+    Look at the last 2 bits of the 3rd byte. It is 2
+    And read the last 2 bits of the 3rd byte. It is 2 again
+    From the beginning 3 bytes were read. They are equal to 24 bits
+    The last byte is 128
+    48 bits from the last checkpoint were read and skipped
+    Usage of VirtualPointer in the BinaryReader is same: 5th byte is 8

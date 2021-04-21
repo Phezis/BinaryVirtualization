@@ -16,15 +16,22 @@ public:
 	explicit BinaryWriter(reverse_bytes_t reverseBytes);
 	BinaryWriter(reverse_bytes_t reverseBytes, reverse_bits_t reverseBits);
 
+	BinaryWriter(const BinaryWriter& other) = delete;
+	BinaryWriter(BinaryWriter&& other) = delete;
+
+	~BinaryWriter() noexcept = default;
+
+	BinaryWriter& operator=(const BinaryWriter & other) = delete;
+	BinaryWriter& operator=(BinaryWriter && other) = delete;
+
 	void setReverseBits(reverse_bits_t reverseBits);
 	void setReverseBytes(reverse_bytes_t reverseBytes);
 
 	void setData(T* address, std::size_t sizeInBytes);
 	void setData(VirtualPointer<T>& address, std::size_t sizeInBytes);
 	bool writeBits(std::size_t count, std::size_t value);
-	std::size_t getRemainSize() const;
 	void flush();
-	void skipAtomicCells(std::size_t count);
+	std::size_t getRemainSize() const;
 
 private:
 	bool				m_reverseBytes;
@@ -241,26 +248,5 @@ void BinaryWriter<T>::flush()
 		{
 			// TODO: make flush for a virtual pointer of a type that has sizeof > 1
 		}
-	}
-}
-
-template <class T>
-inline void BinaryWriter<T>::skipAtomicCells(std::size_t count)
-{
-	if (m_bitPosInCache)
-	{
-		flush();
-		m_remainDataSize -= multiplyBy8(sizeof(std::size_t)) - m_bitPosInCache;
-		m_cache = 0;
-		m_bitPosInCache = 0;
-		m_byteCacheStartFrom = 0;
-	}
-	if (m_typedData)
-	{
-		m_typedData += count;
-	}
-	else
-	{
-		m_vData += count;
 	}
 }

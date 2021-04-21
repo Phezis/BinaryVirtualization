@@ -8,14 +8,23 @@
 #include <cstdint>
 #include <cassert>
 #include <algorithm>
+#include <type_traits>
 
 
 template <class T>
 class BinaryReader {
 public:
-	explicit BinaryReader();
+	BinaryReader();
 	explicit BinaryReader(reverse_bytes_t reverseBytes);
-	explicit BinaryReader(reverse_bytes_t reverseBytes, reverse_bits_t reverseBits);
+	BinaryReader(reverse_bytes_t reverseBytes, reverse_bits_t reverseBits);
+
+	BinaryReader(const BinaryReader& other) = delete;
+	BinaryReader(BinaryReader&& other) = delete;
+
+	~BinaryReader() noexcept = default;
+	
+	BinaryReader& operator=(const BinaryReader & other) = delete;
+	BinaryReader& operator=(BinaryReader && other) = delete;
 
 	void setReverseBits(reverse_bits_t val);
 	void setReverseBytes(reverse_bytes_t val);
@@ -63,7 +72,8 @@ private:
 
 template <class T>
 template <class V>
-bool BinaryReader<T>::readBits(std::size_t count, V& value) {
+bool BinaryReader<T>::readBits(const std::size_t count, V& value) {
+	static_assert(std::is_integral<V>::value, "ReadBits allows only integral types");
 	if (static_cast<uint64_t>(count) > m_remainDataSize || count > BITNESS) {
 		return false;
 	}
@@ -198,7 +208,7 @@ bool BinaryReader<T>::lookBits(std::size_t count, std::size_t& value) const {
 }
 
 template <class T>
-bool BinaryReader<T>::skipBits(std::size_t count) {
+bool BinaryReader<T>::skipBits(const std::size_t count) {
 	if (static_cast<uint64_t>(count) > m_remainDataSize) {
 		return false;
 	}
