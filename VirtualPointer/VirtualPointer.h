@@ -93,7 +93,12 @@ private:
 	// a bytesRemaining of the current chunk
 	std::size_t m_curChunkSize = 0;
 	// contains the number of remaining bytes
-	std::size_t m_size = 0;
+	mutable std::size_t m_bytesRemaining = 0;
+	// Contains the last index of the vector of chunks.
+	// Needed for maintain the correctness of the number of
+	// remaining bytes in the case when another owner of
+	// the vector of chunks added a new chunk
+	mutable std::size_t m_endVectorIndex = 0;
 	
 
 
@@ -108,6 +113,10 @@ private:
 	bool outOfRangeWithRevalidateIndexes();
 
 	void revalidateIndexes();
+
+	void validateBytesRemaining() const; 
+	void increaseBytesRemaining(std::size_t value);
+	void decreaseBytesRemaining(std::size_t value);
 };
 
 template <typename T>
@@ -148,6 +157,34 @@ void VirtualPointer<T>::revalidateIndexes()
 }
 
 template <typename T>
+void VirtualPointer<T>::validateBytesRemaining() const
+{
+	if(m_endVectorIndex == m_chunks->size())
+	{
+		return;
+	}
+	for (auto i = m_endVectorIndex; i < m_chunks->size(); ++i)
+	{
+		m_bytesRemaining += (*m_chunks)[i].second * sizeof(T);
+	}
+	m_endVectorIndex = m_chunks->size();
+}
+
+template <typename T>
+void VirtualPointer<T>::increaseBytesRemaining(const std::size_t value)
+{
+	validateBytesRemaining();
+	m_bytesRemaining += value;
+}
+
+template <typename T>
+void VirtualPointer<T>::decreaseBytesRemaining(const std::size_t value)
+{
+	validateBytesRemaining();
+	m_bytesRemaining -= value;
+}
+
+template <typename T>
 bool VirtualPointer<T>::outOfRangeWithRevalidateIndexes()
 {
 	if (m_chunks->empty())
@@ -177,7 +214,8 @@ VirtualPointer<T>::VirtualPointer(const VirtualPointer& other) :
 	m_curChunkIdx(other.m_curChunkIdx),
 	m_curTIdx(other.m_curTIdx),
 	m_curChunkSize(other.m_curChunkSize),
-	m_size(other.m_size)
+	m_bytesRemaining(other.m_bytesRemaining),
+	m_endVectorIndex(other.m_endVectorIndex)
 {
 }
 
@@ -185,11 +223,12 @@ template <typename T>
 VirtualPointer<T>::VirtualPointer(VirtualPointer&& other) noexcept :
 	m_chunks(std::move(other.m_chunks))
 {
-	std::exchange(m_pCurrentChunk, other.m_pCurrentChunk);
-	std::exchange(m_curChunkIdx, other.m_curChunkIdx);
-	std::exchange(m_curTIdx, other.m_curTIdx);
-	std::exchange(m_curChunkSize, other.m_curChunkSize);
-	std::exchange(m_size, other.m_size);
+	m_pCurrentChunk = other.m_pCurrentChunk;
+	m_curChunkIdx = other.m_curChunkIdx;
+	m_curTIdx = other.m_curTIdx;
+	m_curChunkSize = other.m_curChunkSize;
+	m_bytesRemaining = other.m_bytesRemaining;
+	m_endVectorIndex = other.m_endVectorIndex;
 }
 
 template <typename T>
@@ -211,7 +250,7 @@ template <typename T>
 VirtualPointer<T>& VirtualPointer<T>::operator+=(const std::size_t shift)
 {
 	std::size_t localShift = shift;
-	m_size -= shift * sizeof(T);
+	decreaseBytesRemaining(shift * sizeof(T));
 	if (m_curTIdx + localShift >= m_curChunkSize)
 	{
 		if (m_curChunkIdx + 1 >= m_chunks->size())
@@ -616,7 +655,7 @@ template <typename T>
 VirtualPointer<T>& VirtualPointer<T>::operator-=(const std::size_t shift)
 {
 	std::size_t localShift = shift;
-	m_size += shift * sizeof(T);
+	increaseBytesRemaining(shift * sizeof(T));
 	while (static_cast<size_t>(m_curTIdx) < localShift)
 	{
 		if (m_curChunkIdx)
@@ -689,7 +728,6 @@ void VirtualPointer<T>::addChunk(T* ptr, std::size_t length)
 	{
 		if (nullptr != ptr)
 		{
-			m_size += length * sizeof(T);
 			bool tryShiftChunkIdx = false;
 			if (outOfRangeWithRevalidateIndexes())
 			{
@@ -710,6 +748,7 @@ void VirtualPointer<T>::addChunk(T* ptr, std::size_t length)
 				}
 			}
 			m_pCurrentChunk = (*m_chunks)[m_curChunkIdx].first;
+			validateBytesRemaining();
 		}
 	}
 }
@@ -728,7 +767,6 @@ void VirtualPointer<T>::addChunk(const VirtualPointer& src, std::size_t count)
 	auto curOutOfRange = outOfRangeWithRevalidateIndexes();
 	auto again = true;
 	const auto wasEmpty = m_chunks->empty();
-	m_size += count * sizeof(T);
 	while (again)
 	{
 		if ((*(src.m_chunks))[curSrcChunkIdx].second >= count + curSrcTIdx)
@@ -777,12 +815,14 @@ void VirtualPointer<T>::addChunk(const VirtualPointer& src, std::size_t count)
 	m_curChunkIdx = curChunkIdx;
 	m_pCurrentChunk = (*m_chunks)[m_curChunkIdx].first;
 	m_curChunkSize = (*m_chunks)[m_curChunkIdx].second;
+	validateBytesRemaining();
 }
 
 template <typename T>
 std::size_t VirtualPointer<T>::bytesRemaining() const
 {
-	return m_size;
+	validateBytesRemaining();
+	return m_bytesRemaining;
 }
 
 template <typename T>
@@ -793,7 +833,8 @@ inline void VirtualPointer<T>::clear()
 	m_curChunkIdx = 0;
 	m_curTIdx = 0;
 	m_curChunkSize = 0;
-	m_size = 0;
+	m_bytesRemaining = 0;
+	m_endVectorIndex = 0;
 }
 
 template <typename T>
@@ -1016,13 +1057,13 @@ void VirtualPointer<T>::toNextElement()
 		m_pCurrentChunk = pair.first;
 		m_curChunkSize = pair.second;
 	}
-	m_size -= sizeof(T);
+	decreaseBytesRemaining(sizeof(T));
 }
 
 template <typename T>
 void VirtualPointer<T>::toPrevElement()
 {
-	m_size += sizeof(T);
+	increaseBytesRemaining(sizeof(T));
 	--m_curTIdx;
 	while(m_curTIdx < 0 && 0 != m_curChunkIdx)
 	{

@@ -3134,3 +3134,120 @@ TEST(ComeBackFromOutOfBound, NegativeOutOfBound) {
 
 	EXPECT_EQ(0, *src_ptr);
 }
+
+template<typename T>
+void BytesRemainingArithmeticOperations()
+{
+	constexpr size_t srcArrSize = 128;
+	T srcArr[srcArrSize];
+	auto vSrcArr = VirtualPointer<T>();
+
+	for (size_t chunksSize = 0; chunksSize < srcArrSize; chunksSize += 16)
+	{
+		EXPECT_NO_THROW(vSrcArr.addChunk(srcArr + chunksSize, 16));
+	}
+
+	BytesRemainingArithmeticOperations<T>(srcArr, srcArrSize);
+	BytesRemainingArithmeticOperations<T>(vSrcArr, srcArrSize);
+}
+
+template<typename T, typename P>
+void BytesRemainingArithmeticOperations(P srcArr, const size_t srcArrSize)
+{
+	auto getBytesCount = [](const size_t value)
+	{
+		return value * sizeof(T);
+	};
+	
+	auto srcPtr = VirtualPointer<T>();
+	size_t chunksSize = 0;
+
+	for (size_t size = 1; size < srcArrSize / 2; size *= 2)
+	{
+		EXPECT_NO_THROW(srcPtr.addChunk(srcArr + chunksSize, size));
+		chunksSize += size;
+	}
+
+	auto shift = 0;
+
+	EXPECT_EQ(getBytesCount(chunksSize - shift), srcPtr.bytesRemaining());
+	++srcPtr;
+	++shift;
+	EXPECT_EQ(getBytesCount(chunksSize - shift), srcPtr.bytesRemaining());
+	srcPtr += 1;
+	shift += 1;
+	EXPECT_EQ(getBytesCount(chunksSize - shift), srcPtr.bytesRemaining());
+	srcPtr += 4;
+	shift += 4;
+	EXPECT_EQ(getBytesCount(chunksSize - shift), srcPtr.bytesRemaining());
+	srcPtr += 32;
+	shift += 32;
+	EXPECT_EQ(getBytesCount(chunksSize - shift), srcPtr.bytesRemaining());
+
+
+	--srcPtr;
+	--shift;
+	EXPECT_EQ(getBytesCount(chunksSize - shift), srcPtr.bytesRemaining());
+	srcPtr -= 1;
+	shift -= 1;
+	EXPECT_EQ(getBytesCount(chunksSize - shift), srcPtr.bytesRemaining());
+	srcPtr -= 4;
+	shift -= 4;
+	EXPECT_EQ(getBytesCount(chunksSize - shift), srcPtr.bytesRemaining());
+	srcPtr -= 32;
+	shift -= 32;
+	EXPECT_EQ(getBytesCount(chunksSize - shift), srcPtr.bytesRemaining());
+}
+
+TEST(BytesRemaining, ArithmeticOperations)
+{	
+	BytesRemainingArithmeticOperations<uint8_t>();
+	BytesRemainingArithmeticOperations<uint16_t>();
+	BytesRemainingArithmeticOperations<uint32_t>();
+	BytesRemainingArithmeticOperations<size_t>();
+}
+
+
+template<typename T>
+void BytesRemainingDifferentCopies()
+{
+	constexpr size_t srcArrSize = 128;
+	T srcArr[srcArrSize];
+	auto originalVptr = VirtualPointer<T>();
+
+	for (size_t chunksSize = 0; chunksSize < srcArrSize/2; chunksSize += 16)
+	{
+		EXPECT_NO_THROW(originalVptr.addChunk(srcArr + chunksSize, 16));
+	}
+
+	auto copyVptr = originalVptr;
+
+	auto getBytesCount = [](const size_t value)
+	{
+		return value * sizeof(T);
+	};
+
+
+	EXPECT_EQ(getBytesCount(srcArrSize/2), originalVptr.bytesRemaining());
+	EXPECT_EQ(getBytesCount(srcArrSize/2), copyVptr.bytesRemaining());
+
+	constexpr auto srcArrSizeQuarter = srcArrSize / 4;
+
+	originalVptr.addChunk(srcArr + srcArrSize / 2, srcArrSizeQuarter);
+
+	EXPECT_EQ(getBytesCount(srcArrSizeQuarter * 3), originalVptr.bytesRemaining());
+	EXPECT_EQ(getBytesCount(srcArrSizeQuarter * 3), copyVptr.bytesRemaining());
+	
+	copyVptr.addChunk(srcArr + 3*srcArrSizeQuarter, srcArrSizeQuarter);
+	
+	EXPECT_EQ(getBytesCount(srcArrSize), originalVptr.bytesRemaining());
+	EXPECT_EQ(getBytesCount(srcArrSize), copyVptr.bytesRemaining());
+}
+
+TEST(BytesRemaining, DifferentCopies)
+{
+	BytesRemainingDifferentCopies<uint8_t>();
+	BytesRemainingDifferentCopies<uint16_t>();
+	BytesRemainingDifferentCopies<uint32_t>();
+	BytesRemainingDifferentCopies<size_t>();
+}

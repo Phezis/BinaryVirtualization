@@ -16,13 +16,13 @@ public:
 	explicit BinaryWriter(reverse_bytes_t reverseBytes);
 	BinaryWriter(reverse_bytes_t reverseBytes, reverse_bits_t reverseBits);
 
-	BinaryWriter(const BinaryWriter& other) = delete;
-	BinaryWriter(BinaryWriter&& other) = delete;
+	BinaryWriter(const BinaryWriter& other) = default;
+	BinaryWriter(BinaryWriter&& other) = default;
 
 	~BinaryWriter() noexcept = default;
 
-	BinaryWriter& operator=(const BinaryWriter & other) = delete;
-	BinaryWriter& operator=(BinaryWriter && other) = delete;
+	BinaryWriter& operator=(const BinaryWriter & other) = default;
+	BinaryWriter& operator=(BinaryWriter && other) = default;
 
 	void setReverseBits(reverse_bits_t reverseBits);
 	void setReverseBytes(reverse_bytes_t reverseBytes);

@@ -1782,6 +1782,43 @@ TEST(TestBinaryReader, VirtualReadSmall) {
 }
 
 
+TEST(TestBinaryReader, VirtualReadNotAligned) {
+	// Test is correct if it runs on the little endian architecture
+	uint8_t chunk[] = { 0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
+	uint8_t chunk2[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+	constexpr auto chunkSize = 9;
+	BinaryReader<uint8_t> reader(REVERSE_BYTES, !REVERSE_BITS);
+	reader.setData(chunk, chunkSize);
+
+	size_t storage;
+	
+	reader.readBits(12, storage);
+
+	reader.readBits(3, storage);
+
+	reader.readBits(1, storage);
+
+	reader.skipBits(6);
+	reader.lookBits(2, storage);
+	reader.readBits(2, storage);
+	reader.skipBits(40);
+	reader.readBits(8, storage);
+
+	VirtualPointer<uint8_t> vChunk{};
+	vChunk.addChunk(chunk, chunkSize);
+	vChunk.addChunk(chunk2, chunkSize);
+	reader.setData(vChunk, chunkSize * 2);
+	reader.skipBits(8 * 4);
+	reader.readBits(8, storage);
+	
+
+	for (int i = 0; i < chunkSize + 2; ++i)
+	{
+		reader.readBits(8, storage);
+	}
+	EXPECT_TRUE(reader.readBits(8, storage));
+	EXPECT_EQ(0xFF, storage);
+}
 
 #if defined(_M_X64) || defined(__amd64__)
 TEST(TestBinaryWriter, TestWritingVirtual) {
@@ -2214,3 +2251,34 @@ TEST(TestBinaryWriter, TestWritingVirtual) {
 	delete[] writingTo;
 }
 #endif
+
+TEST(TestBinaryWriter, VirtualWriteNotAligned) {
+	// Test is correct if it runs on the little endian architecture
+	uint8_t chunk[] = { 0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
+	uint8_t chunk2[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+	constexpr auto chunkSize = 9;
+	BinaryWriter<uint8_t> writer(REVERSE_BYTES, !REVERSE_BITS);
+	writer.setData(chunk, chunkSize);
+
+	size_t storage = 0;
+
+	VirtualPointer<uint8_t> vChunk{};
+	vChunk.addChunk(chunk, chunkSize);
+	vChunk.addChunk(chunk2, chunkSize);
+	writer.setData(vChunk, chunkSize * 2);
+
+
+	for (int i = 0; i < 2*chunkSize - 1; ++i)
+	{
+		writer.writeBits(8, storage);
+	}
+	storage = 0xFF;
+	EXPECT_TRUE(writer.writeBits(8, storage));
+	for(int i = 0; i < chunkSize - 1; ++i)
+	{
+		EXPECT_EQ(0x00, chunk[i]);
+		EXPECT_EQ(0x00, chunk2[i]);
+	}
+	EXPECT_EQ(0x00, chunk[chunkSize - 1]);
+	EXPECT_EQ(0xFF, chunk2[chunkSize - 1]);
+}

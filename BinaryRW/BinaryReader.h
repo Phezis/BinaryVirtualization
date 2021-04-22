@@ -18,13 +18,13 @@ public:
 	explicit BinaryReader(reverse_bytes_t reverseBytes);
 	BinaryReader(reverse_bytes_t reverseBytes, reverse_bits_t reverseBits);
 
-	BinaryReader(const BinaryReader& other) = delete;
-	BinaryReader(BinaryReader&& other) = delete;
+	BinaryReader(const BinaryReader& other) = default;
+	BinaryReader(BinaryReader&& other) = default;
 
 	~BinaryReader() noexcept = default;
 	
-	BinaryReader& operator=(const BinaryReader & other) = delete;
-	BinaryReader& operator=(BinaryReader && other) = delete;
+	BinaryReader& operator=(const BinaryReader & other) = default;
+	BinaryReader& operator=(BinaryReader && other) = default;
 
 	void setReverseBits(reverse_bits_t val);
 	void setReverseBytes(reverse_bytes_t val);
@@ -167,8 +167,8 @@ bool BinaryReader<T>::readBits(std::size_t count, std::size_t& value) {
 			value = 0;
 		}
 		updateCache();
-		m_bitPos = bitsFromNextCache;
-		value |= m_cache >> (BITNESS - bitsFromNextCache);
+		m_bitPos += bitsFromNextCache;
+		value |= m_cache >> (BITNESS - m_bitPos);
 	}
 	else {
 		value = (m_cache >> (BITNESS - m_bitPos - count)) & LITTLE_BITS[count];
@@ -231,7 +231,7 @@ bool BinaryReader<T>::skipBits(const std::size_t count) {
 
 template<class T>
 inline T* BinaryReader<T>::getCurrentDataPtr() {
-	return m_typedData - m_lastCacheSize + m_bitPos / 8;
+	return (T*)(m_typedData - m_lastCacheSize + m_bitPos / 8);
 }
 
 template<class T>
