@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cassert>
+#include <limits>
 
 template <class T>
 class BinaryWriter final
@@ -29,6 +30,7 @@ public:
 
 	void setData(T* address, std::size_t sizeInBytes);
 	void setData(VirtualPointer<T>& address, std::size_t sizeInBytes);
+	void setData(VirtualPointer<T>& address);
 	bool writeBits(std::size_t count, std::size_t value);
 	void flush();
 	std::size_t getRemainSize() const;
@@ -41,7 +43,6 @@ private:
 	std::size_t			m_remainDataSize = 0;
 	std::size_t			m_cache = 0;
 	uint16_t			m_bitPosInCache = 0;
-	uint16_t			m_byteCacheStartFrom = 0;
 };
 
 
@@ -74,7 +75,6 @@ void BinaryWriter<T>::setData(T* address, const std::size_t sizeInBytes)
 	m_cache = 0;
 	m_typedData = static_cast<uint8_t*>(address);
 	m_bitPosInCache = 0;
-	m_byteCacheStartFrom = 0;
 }
 
 template <class T>
@@ -85,7 +85,12 @@ void BinaryWriter<T>::setData(VirtualPointer<T>& address, const std::size_t size
 	m_typedData = nullptr;
 	m_vData = address;
 	m_bitPosInCache = 0;
-	m_byteCacheStartFrom = 0;
+}
+
+template <class T>
+void BinaryWriter<T>::setData(VirtualPointer<T>& address)
+{
+	setData(address, divideBy8(std::numeric_limits<std::size_t>::max()));
 }
 
 template <class T>
@@ -151,7 +156,6 @@ bool BinaryWriter<T>::writeBits(const std::size_t count, std::size_t value)
 		}
 		m_cache = 0;
 		m_bitPosInCache = 0;
-		m_byteCacheStartFrom = 0;
 	}
 	m_remainDataSize -= count;
 	return true;
@@ -174,14 +178,14 @@ void BinaryWriter<T>::flush()
 		{
 			if (m_reverseBits)
 			{
-				for (auto i = m_byteCacheStartFrom; i < lastByteToFlush; ++i)
+				for (auto i = 0; i < lastByteToFlush; ++i)
 				{
 					m_typedData[i] = reverseBitsInByte(cacheInBytes[sizeof(std::size_t) - i - 1]);
 				}
 			}
 			else
 			{
-				for (auto i = m_byteCacheStartFrom; i < lastByteToFlush; ++i)
+				for (auto i = 0; i < lastByteToFlush; ++i)
 				{
 					m_typedData[i] = cacheInBytes[sizeof(std::size_t) - i - 1];
 				}
@@ -191,14 +195,14 @@ void BinaryWriter<T>::flush()
 		{
 			if (m_reverseBits)
 			{
-				for (auto i = m_byteCacheStartFrom; i < lastByteToFlush; ++i)
+				for (auto i = 0; i < lastByteToFlush; ++i)
 				{
 					m_typedData[i] = reverseBitsInByte(cacheInBytes[i]);
 				}
 			}
 			else
 			{
-				for (auto i = m_byteCacheStartFrom; i < lastByteToFlush; ++i)
+				for (auto i = 0; i < lastByteToFlush; ++i)
 				{
 					m_typedData[i] = cacheInBytes[i];
 				}
@@ -213,14 +217,14 @@ void BinaryWriter<T>::flush()
 			{
 				if (m_reverseBits)
 				{
-					for (auto i = m_byteCacheStartFrom; i < lastByteToFlush; ++i)
+					for (auto i = 0; i < lastByteToFlush; ++i)
 					{
 						m_vData[i] = reverseBitsInByte(cacheInBytes[sizeof(std::size_t) - i - 1]);
 					}
 				}
 				else
 				{
-					for (auto i = m_byteCacheStartFrom; i < lastByteToFlush; ++i)
+					for (auto i = 0; i < lastByteToFlush; ++i)
 					{
 						m_vData[i] = cacheInBytes[sizeof(std::size_t) - i - 1];
 					}
@@ -230,14 +234,14 @@ void BinaryWriter<T>::flush()
 			{
 				if (m_reverseBits)
 				{
-					for (auto i = m_byteCacheStartFrom; i < lastByteToFlush; ++i)
+					for (auto i = 0; i < lastByteToFlush; ++i)
 					{
 						m_vData[i] = reverseBitsInByte(cacheInBytes[i]);
 					}
 				}
 				else
 				{
-					for (auto i = m_byteCacheStartFrom; i < lastByteToFlush; ++i)
+					for (auto i = 0; i < lastByteToFlush; ++i)
 					{
 						m_vData[i] = cacheInBytes[i];
 					}

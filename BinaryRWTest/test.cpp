@@ -2282,3 +2282,159 @@ TEST(TestBinaryWriter, VirtualWriteNotAligned) {
 	EXPECT_EQ(0x00, chunk[chunkSize - 1]);
 	EXPECT_EQ(0xFF, chunk2[chunkSize - 1]);
 }
+
+
+TEST(TestBinaryWriter, AddChunkWhileWriting) {
+	// Test is correct if it runs on the little endian architecture
+	constexpr auto chunkSize = 3;
+	uint8_t chunk[chunkSize] = { 0, 0, 0 };
+	BinaryWriter<uint8_t> writer(REVERSE_BYTES, !REVERSE_BITS);
+
+	const size_t storage = 0xFF;
+
+	VirtualPointer<uint8_t> vChunk{};
+	vChunk.addChunk(chunk, 1);
+	writer.setData(vChunk, chunkSize);
+
+	for(int i = 1; i < 3; ++i)
+	{
+		writer.writeBits(1, storage);
+		writer.writeBits(1, storage);
+		writer.writeBits(2, storage);
+		writer.writeBits(4, storage);
+
+		vChunk.addChunk(chunk + i, 1);
+	}
+
+	writer.writeBits(1, storage);
+	writer.writeBits(1, storage);
+	writer.writeBits(2, storage);
+	writer.writeBits(4, storage);
+
+	writer.flush();
+
+	
+	for (int i = 0; i < chunkSize; ++i)
+	{
+		EXPECT_EQ(0xFF, chunk[i]);
+	}
+}
+TEST(TestBinaryWriter, AddChunkWhileWritingWithIntermediateFlush) {
+	// Test is correct if it runs on the little endian architecture
+	constexpr auto chunkSize = 3;
+	uint8_t chunk[chunkSize] = { 0, 0, 0 };
+	BinaryWriter<uint8_t> writer(REVERSE_BYTES, !REVERSE_BITS);
+
+	constexpr size_t storage = 0xFF;
+	auto writeByte = [&writer]()
+	{
+		constexpr size_t storage = 0xFF;
+		writer.writeBits(1, storage);
+		writer.writeBits(1, storage);
+		writer.writeBits(2, storage);
+		writer.writeBits(4, storage);
+	};
+
+	VirtualPointer<uint8_t> vChunk{};
+
+	vChunk.addChunk(chunk, 1);
+	writer.setData(vChunk, chunkSize);
+	
+	writeByte();
+	writer.flush();
+
+	vChunk.addChunk(chunk + 1, 1);
+	writer.writeBits(1, storage);
+	writer.writeBits(1, storage);
+	writer.writeBits(2, storage);
+	writer.flush();
+
+	vChunk.addChunk(chunk + 2, 1);
+	writer.writeBits(4, storage);
+	writeByte();
+	writer.flush();
+
+	
+	for (int i = 0; i < chunkSize; ++i)
+	{
+		EXPECT_EQ(0xFF, chunk[i]);
+	}
+}
+
+TEST(TestBinaryWriter, setDataInfiniteSize) {
+	// Test is correct if it runs on the little endian architecture
+	constexpr auto chunkSize = 3;
+	uint8_t chunk[chunkSize] = { 0, 0, 0 };
+	BinaryWriter<uint8_t> writer(REVERSE_BYTES, !REVERSE_BITS);
+
+	const size_t storage = 0xFF;
+
+	VirtualPointer<uint8_t> vChunk{};
+	vChunk.addChunk(chunk, 1);
+	writer.setData(vChunk);
+
+	for (int i = 1; i < 3; ++i)
+	{
+		writer.writeBits(1, storage);
+		writer.writeBits(1, storage);
+		writer.writeBits(2, storage);
+		writer.writeBits(4, storage);
+
+		vChunk.addChunk(chunk + i, 1);
+	}
+
+	writer.writeBits(1, storage);
+	writer.writeBits(1, storage);
+	writer.writeBits(2, storage);
+	writer.writeBits(4, storage);
+
+	writer.flush();
+
+
+	for (int i = 0; i < chunkSize; ++i)
+	{
+		EXPECT_EQ(0xFF, chunk[i]);
+	}
+}
+
+TEST(TestBinaryWriter, setDataInfiniteSizeWithIntermediateFlush) {
+	// Test is correct if it runs on the little endian architecture
+	constexpr auto chunkSize = 3;
+	uint8_t chunk[chunkSize] = { 0, 0, 0 };
+	BinaryWriter<uint8_t> writer(REVERSE_BYTES, !REVERSE_BITS);
+
+	constexpr size_t storage = 0xFF;
+	auto writeByte = [&writer]()
+	{
+		constexpr size_t storage = 0xFF;
+		writer.writeBits(1, storage);
+		writer.writeBits(1, storage);
+		writer.writeBits(2, storage);
+		writer.writeBits(4, storage);
+	};
+
+	VirtualPointer<uint8_t> vChunk{};
+
+	vChunk.addChunk(chunk, 1);
+	writer.setData(vChunk);
+
+	writeByte();
+	writer.flush();
+
+	vChunk.addChunk(chunk + 1, 1);
+	writer.writeBits(1, storage);
+	writer.writeBits(1, storage);
+	writer.writeBits(2, storage);
+	writer.flush();
+
+	vChunk.addChunk(chunk + 2, 1);
+	writer.writeBits(4, storage);
+	writeByte();
+	writer.flush();
+
+
+	for (int i = 0; i < chunkSize; ++i)
+	{
+		EXPECT_EQ(0xFF, chunk[i]);
+	}
+}
