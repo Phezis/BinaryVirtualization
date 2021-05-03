@@ -29,18 +29,15 @@ public:
 	void setReverseBytes(reverse_bytes_t reverseBytes);
 
 	void setData(T* address, std::size_t sizeInBytes);
-	void setData(VirtualPointer<T>& address, std::size_t sizeInBytes);
 	void setData(VirtualPointer<T>& address);
 	bool writeBits(std::size_t count, std::size_t value);
 	void flush();
-	std::size_t getRemainSize() const;
 
 private:
 	bool				m_reverseBytes;
 	bool				m_reverseBits;
 	uint8_t*			m_typedData = nullptr;
 	VirtualPointer<T>	m_vData{};
-	std::size_t			m_remainDataSize = 0;
 	std::size_t			m_cache = 0;
 	uint16_t			m_bitPosInCache = 0;
 };
@@ -71,26 +68,18 @@ template <class T>
 void BinaryWriter<T>::setData(T* address, const std::size_t sizeInBytes)
 {
 	assert(nullptr != address);
-	m_remainDataSize = multiplyBy8(sizeInBytes);
 	m_cache = 0;
 	m_typedData = static_cast<uint8_t*>(address);
 	m_bitPosInCache = 0;
 }
 
 template <class T>
-void BinaryWriter<T>::setData(VirtualPointer<T>& address, const std::size_t sizeInBytes)
+void BinaryWriter<T>::setData(VirtualPointer<T>& address)
 {
-	m_remainDataSize = multiplyBy8(sizeInBytes);
 	m_cache = 0;
 	m_typedData = nullptr;
 	m_vData = address;
 	m_bitPosInCache = 0;
-}
-
-template <class T>
-void BinaryWriter<T>::setData(VirtualPointer<T>& address)
-{
-	setData(address, divideBy8(std::numeric_limits<std::size_t>::max()));
 }
 
 template <class T>
@@ -112,10 +101,6 @@ bool BinaryWriter<T>::writeBits(const std::size_t count, std::size_t value)
 	if (count > sizeOfSizeTInBits)
 	{
 		throw std::invalid_argument("Attempt to write more bits than size_t could contain");
-	}
-	if (count > m_remainDataSize)
-	{
-		return false;
 	}
 
 	value &= LITTLE_BITS[count];
@@ -143,7 +128,7 @@ bool BinaryWriter<T>::writeBits(const std::size_t count, std::size_t value)
 		m_cache |= value;
 		m_bitPosInCache += static_cast<uint16_t>(count);
 	}
-	if (count == m_remainDataSize || m_bitPosInCache == sizeOfSizeTInBits)
+	if (m_bitPosInCache == sizeOfSizeTInBits)
 	{
 		flush();
 		if (m_typedData)
@@ -157,14 +142,7 @@ bool BinaryWriter<T>::writeBits(const std::size_t count, std::size_t value)
 		m_cache = 0;
 		m_bitPosInCache = 0;
 	}
-	m_remainDataSize -= count;
 	return true;
-}
-
-template <class T>
-std::size_t BinaryWriter<T>::getRemainSize() const
-{
-	return m_remainDataSize;
 }
 
 template <class T>

@@ -29,16 +29,16 @@ int main()
 		writer.writeBits(1, storage);
 		writer.writeBits(1, storage);
 		writer.flush();
-		std::cout << "After filling 2 bytes out of 5, " << writer.getRemainSize() << " bits remain" << std::endl;
 		std::cout << "First byte was written as " << static_cast<int>(chunk[0]) << std::endl;
 		std::cout << "Second byte was written as " << static_cast<int>(chunk[1]) << std::endl;
 
 		VirtualPointer<uint8_t> vChunk{};
 		vChunk.addChunk(chunk + 2, chunkSize - 2);
 
-		writer.setData(vChunk, chunkSize - 2);
+		writer.setData(vChunk);
 		storage = 0x030405;
 		writer.writeBits(24, storage);
+		writer.flush();
 		
 		std::cout << "Last 3 bytes were written as they are indexed: ";
 		for(auto vptr = vChunk; vptr.bytesRemaining(); ++vptr)

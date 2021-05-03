@@ -453,8 +453,7 @@ TEST(TestBinaryWriter, TestWriting) {
 	for (uint8_t i = 0; i < 16; ++i) {
 		EXPECT_TRUE(writer.writeBits(8, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
-	EXPECT_FALSE(writer.writeBits(8, val));
+	writer.flush();
 	for (uint8_t i = 0; i < 16; ++i) {
 		EXPECT_EQ(0xF0, a[i]);
 	}
@@ -464,7 +463,6 @@ TEST(TestBinaryWriter, TestWriting) {
 	for (uint8_t i = 0; i < 4; ++i) {
 		EXPECT_TRUE(writer.writeBits(32, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 16; ++i) {
 		EXPECT_EQ(0x0F, b[i]);
 	}
@@ -474,7 +472,6 @@ TEST(TestBinaryWriter, TestWriting) {
 		EXPECT_TRUE(writer.writeBits(2, 0x3));
 		EXPECT_TRUE(writer.writeBits(2, 0));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 16; ++i) {
 		EXPECT_EQ(0xCC, c[i]);
 	}
@@ -486,8 +483,7 @@ TEST(TestBinaryWriter, TestWriting) {
 		EXPECT_TRUE(writer.writeBits(9, 0xAA));
 	}
 	EXPECT_TRUE(writer.writeBits(10, 0x2AA));
-	EXPECT_EQ(0, writer.getRemainSize());
-	EXPECT_FALSE(writer.writeBits(8, val));
+	writer.flush();
 	for (uint8_t i = 0; i < 17; ++i) {
 		EXPECT_EQ(0xAA, d[i]);
 	}
@@ -502,7 +498,6 @@ TEST(TestBinaryWriter, TestWriting) {
 	for (uint8_t i = 0; i < 4; ++i) {
 		EXPECT_TRUE(writer.writeBits(32, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 16; i += 2) {
 		EXPECT_EQ(0xFF, a[i]);
 		EXPECT_EQ(0x00, a[i + 1]);
@@ -514,7 +509,6 @@ TEST(TestBinaryWriter, TestWriting) {
 	for (uint8_t i = 0; i < 4; ++i) {
 		EXPECT_TRUE(writer.writeBits(32, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 16; ++i) {
 		EXPECT_EQ(0x0F, b[i]);
 	}
@@ -524,7 +518,6 @@ TEST(TestBinaryWriter, TestWriting) {
 	for (uint8_t i = 0; i < 4; ++i) {
 		EXPECT_TRUE(writer.writeBits(32, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 16; i += 2) {
 		EXPECT_EQ(0x0F, c[i]);
 		EXPECT_EQ(0xF0, c[i + 1]);
@@ -628,8 +621,6 @@ TEST(TestBinaryWriter, TestWriting) {
 	for (uint8_t i = 0; i < 16; ++i) {
 		EXPECT_TRUE(writer.writeBits(8, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
-	EXPECT_FALSE(writer.writeBits(8, val));
 	for (uint8_t i = 0; i < 16; ++i) {
 		EXPECT_EQ(0xF0, a[i]);
 	}
@@ -639,7 +630,6 @@ TEST(TestBinaryWriter, TestWriting) {
 	for (uint8_t i = 0; i < 4; ++i) {
 		EXPECT_TRUE(writer.writeBits(32, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 16; ++i) {
 		EXPECT_EQ(0x0F, b[i]);
 	}
@@ -649,7 +639,6 @@ TEST(TestBinaryWriter, TestWriting) {
 		EXPECT_TRUE(writer.writeBits(2, 0x3));
 		EXPECT_TRUE(writer.writeBits(2, 0));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 16; ++i) {
 		EXPECT_EQ(0xCC, c[i]);
 	}
@@ -661,8 +650,7 @@ TEST(TestBinaryWriter, TestWriting) {
 		EXPECT_TRUE(writer.writeBits(9, 0xAA));
 	}
 	EXPECT_TRUE(writer.writeBits(10, 0x2AA));
-	EXPECT_EQ(0, writer.getRemainSize());
-	EXPECT_FALSE(writer.writeBits(8, val));
+	writer.flush();
 	for (uint8_t i = 0; i < 17; ++i) {
 		EXPECT_EQ(0xAA, d[i]);
 	}
@@ -677,7 +665,6 @@ TEST(TestBinaryWriter, TestWriting) {
 	for (uint8_t i = 0; i < 4; ++i) {
 		EXPECT_TRUE(writer.writeBits(32, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 16; i += 2) {
 		EXPECT_EQ(0xFF, a[i]);
 		EXPECT_EQ(0x00, a[i + 1]);
@@ -689,7 +676,6 @@ TEST(TestBinaryWriter, TestWriting) {
 	for (uint8_t i = 0; i < 4; ++i) {
 		EXPECT_TRUE(writer.writeBits(32, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 16; ++i) {
 		EXPECT_EQ(0x0F, b[i]);
 	}
@@ -699,7 +685,6 @@ TEST(TestBinaryWriter, TestWriting) {
 	for (uint8_t i = 0; i < 4; ++i) {
 		EXPECT_TRUE(writer.writeBits(32, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 16; i += 2) {
 		EXPECT_EQ(0x0F, c[i]);
 		EXPECT_EQ(0xF0, c[i + 1]);
@@ -802,8 +787,6 @@ TEST(TestBinaryWriter, TestFlush) {
 		writer.flush();
 		EXPECT_EQ(0xF0, a[i]);
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
-	EXPECT_FALSE(writer.writeBits(8, val));
 	for (uint8_t i = 2; i < 18; ++i) {
 		EXPECT_EQ(0xF0, a[i]);
 	}
@@ -819,8 +802,6 @@ TEST(TestBinaryWriter, TestFlush) {
 		writer.flush();
 		EXPECT_EQ(0xFF, a[i]);
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
-	EXPECT_FALSE(writer.writeBits(8, val));
 	for (uint8_t i = 2; i < 18; ++i) {
 		EXPECT_EQ(0xFF, a[i]);
 	}
@@ -854,8 +835,6 @@ TEST(TestBinaryWriter, TestFlush) {
 		writer.flush();
 		EXPECT_EQ(0xFF, a[i]);
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
-	EXPECT_FALSE(writer.writeBits(8, val));
 	for (uint8_t i = 2; i < 18; ++i) {
 		EXPECT_EQ(0xFF, a[i]);
 	}
@@ -1842,7 +1821,7 @@ TEST(TestBinaryWriter, TestWritingVirtual) {
 	vptrd.addChunk(d + 32, 1);
 
 	BinaryWriter<uint8_t> writer{ false };
-	writer.setData(vptra, 16);
+	writer.setData(vptra);
 	// Test like we are big endian
 	writer.setReverseBits(false);
 	writer.setReverseBytes(false);
@@ -1850,44 +1829,40 @@ TEST(TestBinaryWriter, TestWritingVirtual) {
 	for (uint8_t i = 0; i < 16; ++i) {
 		EXPECT_TRUE(writer.writeBits(8, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
-	EXPECT_FALSE(writer.writeBits(8, val));
+	writer.flush();
 	for (uint8_t i = 0; i < 32; i += 2) {
 		EXPECT_EQ(0xF0, a[i]);
 		EXPECT_EQ(0x00, a[i + 1]);
 	}
 
-	writer.setData(vptrb, 16);
+	writer.setData(vptrb);
 	val = 0x0F0F0F0F;
 	for (uint8_t i = 0; i < 4; ++i) {
 		EXPECT_TRUE(writer.writeBits(32, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 32; i += 2) {
 		EXPECT_EQ(0x0F, b[i]);
 		EXPECT_EQ(0x00, b[i + 1]);
 	}
 
-	writer.setData(vptrc, 16);
+	writer.setData(vptrc);
 	for (uint8_t i = 0; i < 32; ++i) {
 		EXPECT_TRUE(writer.writeBits(2, 0x3));
 		EXPECT_TRUE(writer.writeBits(2, 0));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 32; i += 2) {
 		EXPECT_EQ(0xCC, c[i]);
 		EXPECT_EQ(0x00, c[i + 1]);
 	}
 	// next situation cannot be tested in little endian architecture
 	writer.setReverseBytes(true);
-	writer.setData(vptrd, 17);
+	writer.setData(vptrd);
 	for (uint8_t i = 0; i < 7; ++i) {
 		EXPECT_TRUE(writer.writeBits(9, 0x155));
 		EXPECT_TRUE(writer.writeBits(9, 0xAA));
 	}
 	EXPECT_TRUE(writer.writeBits(10, 0x2AA));
-	EXPECT_EQ(0, writer.getRemainSize());
-	EXPECT_FALSE(writer.writeBits(8, val));
+	writer.flush();
 	for (uint8_t i = 0; i < 34; i += 2) {
 		EXPECT_EQ(0xAA, d[i]);
 		EXPECT_EQ(0x00, d[i + 1]);
@@ -1898,12 +1873,11 @@ TEST(TestBinaryWriter, TestWritingVirtual) {
 	std::fill(c, c + 32, 0);
 	std::fill(d, d + 34, 0);
 	writer.setReverseBytes(true);
-	writer.setData(vptra, 16);
+	writer.setData(vptra);
 	val = 0xFF00FF00;
 	for (uint8_t i = 0; i < 4; ++i) {
 		EXPECT_TRUE(writer.writeBits(32, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 32; i += 4) {
 		EXPECT_EQ(0xFF, a[i]);
 		EXPECT_EQ(0x00, a[i + 1]);
@@ -1912,23 +1886,21 @@ TEST(TestBinaryWriter, TestWritingVirtual) {
 	}
 	writer.setReverseBytes(false);
 	writer.setReverseBits(true);
-	writer.setData(vptrb, 16);
+	writer.setData(vptrb);
 	val = 0xF0F0F0F0;
 	for (uint8_t i = 0; i < 4; ++i) {
 		EXPECT_TRUE(writer.writeBits(32, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 32; i += 2) {
 		EXPECT_EQ(0x0F, b[i]);
 		EXPECT_EQ(0x00, b[i + 1]);
 	}
 	writer.setReverseBytes(true);
-	writer.setData(vptrc, 16);
+	writer.setData(vptrc);
 	val = 0xF00FF00F;
 	for (uint8_t i = 0; i < 4; ++i) {
 		EXPECT_TRUE(writer.writeBits(32, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 32; i += 4) {
 		EXPECT_EQ(0x0F, c[i]);
 		EXPECT_EQ(0x00, c[i + 1]);
@@ -1955,7 +1927,7 @@ TEST(TestBinaryWriter, TestWritingVirtual) {
 
 	writer.setReverseBits(false);
 	writer.setReverseBytes(true);
-	writer.setData(vptr, dataSize);
+	writer.setData(vptr);
 
 	for (size_t i = 0; i < read1To32Count; ++i) {
 		for (size_t j = 1; j <= maxBitsCount; ++j) {
@@ -1975,7 +1947,7 @@ TEST(TestBinaryWriter, TestWritingVirtual) {
 
 	// Test reverse bytes
 	writer.setReverseBytes(false);
-	writer.setData(vptr, dataSize);
+	writer.setData(vptr);
 
 	for (size_t i = 0; i < read1To32Count; ++i) {
 		for (size_t j = 1; j <= maxBitsCount; ++j) {
@@ -1996,7 +1968,7 @@ TEST(TestBinaryWriter, TestWritingVirtual) {
 	// Test reverse bits
 	writer.setReverseBytes(true);
 	writer.setReverseBits(true);
-	writer.setData(vptr, dataSize);
+	writer.setData(vptr);
 
 	for (size_t i = 0; i < read1To32Count; ++i) {
 		for (size_t j = 1; j <= maxBitsCount; ++j) {
@@ -2016,7 +1988,7 @@ TEST(TestBinaryWriter, TestWritingVirtual) {
 
 	// Test reverse all
 	writer.setReverseBytes(false);
-	writer.setData(vptr, dataSize);
+	writer.setData(vptr);
 
 	for (size_t i = 0; i < read1To32Count; ++i) {
 		for (size_t j = 1; j <= maxBitsCount; ++j) {
@@ -2057,7 +2029,7 @@ TEST(TestBinaryWriter, TestWritingVirtual) {
 	vptrd.addChunk(d + 32, 1);
 
 	BinaryWriter<uint8_t> writer{ false };
-	writer.setData(vptra, 16);
+	writer.setData(vptra);
 	// Test like we are big endian
 	writer.setReverseBits(false);
 	writer.setReverseBytes(false);
@@ -2065,44 +2037,39 @@ TEST(TestBinaryWriter, TestWritingVirtual) {
 	for (uint8_t i = 0; i < 16; ++i) {
 		EXPECT_TRUE(writer.writeBits(8, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
-	EXPECT_FALSE(writer.writeBits(8, val));
 	for (uint8_t i = 0; i < 32; i += 2) {
 		EXPECT_EQ(0xF0, a[i]);
 		EXPECT_EQ(0x00, a[i + 1]);
 	}
 
-	writer.setData(vptrb, 16);
+	writer.setData(vptrb);
 	val = 0x0F0F0F0F;
 	for (uint8_t i = 0; i < 4; ++i) {
 		EXPECT_TRUE(writer.writeBits(32, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 32; i += 2) {
 		EXPECT_EQ(0x0F, b[i]);
 		EXPECT_EQ(0x00, b[i + 1]);
 	}
 
-	writer.setData(vptrc, 16);
+	writer.setData(vptrc);
 	for (uint8_t i = 0; i < 32; ++i) {
 		EXPECT_TRUE(writer.writeBits(2, 0x3));
 		EXPECT_TRUE(writer.writeBits(2, 0));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 32; i += 2) {
 		EXPECT_EQ(0xCC, c[i]);
 		EXPECT_EQ(0x00, c[i + 1]);
 	}
 	// next situation cannot be tested in little endian architecture
 	writer.setReverseBytes(true);
-	writer.setData(vptrd, 17);
+	writer.setData(vptrd);
 	for (uint8_t i = 0; i < 7; ++i) {
 		EXPECT_TRUE(writer.writeBits(9, 0x155));
 		EXPECT_TRUE(writer.writeBits(9, 0xAA));
 	}
 	EXPECT_TRUE(writer.writeBits(10, 0x2AA));
-	EXPECT_EQ(0, writer.getRemainSize());
-	EXPECT_FALSE(writer.writeBits(8, val));
+	writer.flush();
 	for (uint8_t i = 0; i < 34; i += 2) {
 		EXPECT_EQ(0xAA, d[i]);
 		EXPECT_EQ(0x00, d[i + 1]);
@@ -2113,12 +2080,11 @@ TEST(TestBinaryWriter, TestWritingVirtual) {
 	std::fill(c, c + 32, 0);
 	std::fill(d, d + 34, 0);
 	writer.setReverseBytes(true);
-	writer.setData(vptra, 16);
+	writer.setData(vptra);
 	val = 0xFF00FF00;
 	for (uint8_t i = 0; i < 4; ++i) {
 		EXPECT_TRUE(writer.writeBits(32, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 32; i += 4) {
 		EXPECT_EQ(0xFF, a[i]);
 		EXPECT_EQ(0x00, a[i + 1]);
@@ -2127,23 +2093,21 @@ TEST(TestBinaryWriter, TestWritingVirtual) {
 	}
 	writer.setReverseBytes(false);
 	writer.setReverseBits(true);
-	writer.setData(vptrb, 16);
+	writer.setData(vptrb);
 	val = 0xF0F0F0F0;
 	for (uint8_t i = 0; i < 4; ++i) {
 		EXPECT_TRUE(writer.writeBits(32, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 32; i += 2) {
 		EXPECT_EQ(0x0F, b[i]);
 		EXPECT_EQ(0x00, b[i + 1]);
 	}
 	writer.setReverseBytes(true);
-	writer.setData(vptrc, 16);
+	writer.setData(vptrc);
 	val = 0xF00FF00F;
 	for (uint8_t i = 0; i < 4; ++i) {
 		EXPECT_TRUE(writer.writeBits(32, val));
 	}
-	EXPECT_EQ(0, writer.getRemainSize());
 	for (uint8_t i = 0; i < 32; i += 4) {
 		EXPECT_EQ(0x0F, c[i]);
 		EXPECT_EQ(0x00, c[i + 1]);
@@ -2170,7 +2134,7 @@ TEST(TestBinaryWriter, TestWritingVirtual) {
 
 	writer.setReverseBits(false);
 	writer.setReverseBytes(true);
-	writer.setData(vptr, dataSize);
+	writer.setData(vptr);
 
 	for (size_t i = 0; i < read1To32Count; ++i) {
 		for (size_t j = 1; j <= maxBitsCount; ++j) {
@@ -2190,7 +2154,7 @@ TEST(TestBinaryWriter, TestWritingVirtual) {
 
 	// Test reverse bytes
 	writer.setReverseBytes(false);
-	writer.setData(vptr, dataSize);
+	writer.setData(vptr);
 
 	for (size_t i = 0; i < read1To32Count; ++i) {
 		for (size_t j = 1; j <= maxBitsCount; ++j) {
@@ -2211,7 +2175,7 @@ TEST(TestBinaryWriter, TestWritingVirtual) {
 	// Test reverse bits
 	writer.setReverseBytes(true);
 	writer.setReverseBits(true);
-	writer.setData(vptr, dataSize);
+	writer.setData(vptr);
 
 	for (size_t i = 0; i < read1To32Count; ++i) {
 		for (size_t j = 1; j <= maxBitsCount; ++j) {
@@ -2231,7 +2195,7 @@ TEST(TestBinaryWriter, TestWritingVirtual) {
 
 	// Test reverse all
 	writer.setReverseBytes(false);
-	writer.setData(vptr, dataSize);
+	writer.setData(vptr);
 
 	for (size_t i = 0; i < read1To32Count; ++i) {
 		for (size_t j = 1; j <= maxBitsCount; ++j) {
@@ -2265,7 +2229,7 @@ TEST(TestBinaryWriter, VirtualWriteNotAligned) {
 	VirtualPointer<uint8_t> vChunk{};
 	vChunk.addChunk(chunk, chunkSize);
 	vChunk.addChunk(chunk2, chunkSize);
-	writer.setData(vChunk, chunkSize * 2);
+	writer.setData(vChunk);
 
 
 	for (int i = 0; i < 2*chunkSize - 1; ++i)
@@ -2274,6 +2238,7 @@ TEST(TestBinaryWriter, VirtualWriteNotAligned) {
 	}
 	storage = 0xFF;
 	EXPECT_TRUE(writer.writeBits(8, storage));
+	writer.flush();
 	for(int i = 0; i < chunkSize - 1; ++i)
 	{
 		EXPECT_EQ(0x00, chunk[i]);
@@ -2294,7 +2259,7 @@ TEST(TestBinaryWriter, AddChunkWhileWriting) {
 
 	VirtualPointer<uint8_t> vChunk{};
 	vChunk.addChunk(chunk, 1);
-	writer.setData(vChunk, chunkSize);
+	writer.setData(vChunk);
 
 	for(int i = 1; i < 3; ++i)
 	{
@@ -2338,7 +2303,7 @@ TEST(TestBinaryWriter, AddChunkWhileWritingWithIntermediateFlush) {
 	VirtualPointer<uint8_t> vChunk{};
 
 	vChunk.addChunk(chunk, 1);
-	writer.setData(vChunk, chunkSize);
+	writer.setData(vChunk);
 	
 	writeByte();
 	writer.flush();
