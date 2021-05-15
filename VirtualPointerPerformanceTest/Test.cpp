@@ -103,12 +103,13 @@ void copyOutside(vector<byte>& to, vector<byte>& from, const size_t toSize, cons
 	for (size_t toId = 0, fromId = 0; toId < minSize - 1; toId += payloadSize, fromId += payloadSize)
 	{
 		toId += headerSize;
-		const auto to_ = to.data() + toId;
+		/*const auto to_ = to.data() + toId;
 		const auto from_ = from.data() + fromId;
 		for (size_t i = 0; i < payloadSize; ++i)
 		{
 			to_[i] = from_[i];
-		}
+		}*/
+		memcpy(to.data() + toId, from.data() + fromId, payloadSize);
 	}
 }
 
@@ -191,10 +192,9 @@ void Test::recursiveVptr(VirtualPointer<byte>& majorVptr, const size_t depth)
 	else
 	{
 		auto vp = vptr;
-		for (; vp.bytesRemaining();)
+		for (; vp.bytesRemaining(); ++vp)
 		{
 			++(*vp);
-			++vp;
 		}
 		copyToDecoderBuffer(m_decoderArray, vptr, vptr.bytesRemaining());
 	}
@@ -235,7 +235,7 @@ Test::duration Test::vptrTest()
 		originalArrayElementsSum += element;
 	}
 
-	m_avoidOptimizationStream << "Vptr test: depth = " << m_depth << "; packet bytesRemaining = " << m_summaryPacketSize << "; Elapsed time = " << duration.count() << endl;
-	m_logsStream << "Vptr test: depth = " << m_depth << "; packet bytesRemaining = " << m_summaryPacketSize << "; original array elements sum = " << originalArrayElementsSum << endl;
+	m_logsStream << "Vptr test: depth = " << m_depth << "; packet bytesRemaining = " << m_summaryPacketSize << "; Elapsed time = " << duration.count() << endl;
+	m_avoidOptimizationStream << "Vptr test: depth = " << m_depth << "; packet bytesRemaining = " << m_summaryPacketSize << "; original array elements sum = " << originalArrayElementsSum << endl;
 	return duration;
 }

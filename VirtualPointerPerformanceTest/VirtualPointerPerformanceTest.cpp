@@ -38,7 +38,7 @@ int main()
 
             using stream = std::pair<int, int>;
             constexpr auto repeatsInside = 1;
-            constexpr auto repeatsOutside = 4;
+            constexpr auto repeatsOutside = 1;
             const auto depths = { 1, 2, 4 };
         	const auto streamConstitutes = {
             	stream{5120, 1000000},
@@ -47,10 +47,10 @@ int main()
                 stream{5120000, 1000}
             };
             const auto packetSizes = {
-                "5 кб",
-                "50 кб",
-                "500 кб",
-                "5 мб"
+                "5 kb",
+                "50 kb",
+                "500 kb",
+                "5 mb"
             };
             resultsStream << ARCHITECTURE << std::endl;
             for (auto j = 0; j < repeatsOutside; ++j)
@@ -63,8 +63,8 @@ int main()
                 std::fill_n(vptrResults.get(), resultsCount, std::numeric_limits<double>::max());
 
                 Test test(avoidOptimizationStream, cout);
-                test.setHeaderSize(4);
-                test.setPayloadSize(184);
+                test.setHeaderSize(2);
+                test.setPayloadSize(189);
 
                 auto resultId = 0;
                 for (const auto& depth : depths)
@@ -95,8 +95,8 @@ int main()
                 std::cout << ";";
                 for (const auto& depth : depths)
                 {
-                    resultsStream << "Глубина " << depth;
-                    std::cout << "Глубина " << depth;
+                    resultsStream << "Depth " << depth;
+                    std::cout << "Depth " << depth;
                     for (size_t i = 0; i < streamConstitutes.size(); ++i)
                     {
                         resultsStream << ";";
@@ -119,27 +119,27 @@ int main()
                 resultsStream << std::endl;
                 std::cout << std::endl;
                 // print copy times
-                resultsStream << "Копирование;";
-                std::cout << "Копирование;";
+                resultsStream << "Copy;";
+                std::cout << "Copy;";
                 for (size_t i = 0; i < depths.size(); ++i)
                 {
-                    for (size_t j = 0; j < streamConstitutes.size(); ++j)
+                    for (size_t k = 0; k < streamConstitutes.size(); ++k)
                     {
-                        resultsStream << copyResults[i * depths.size() + j] << ";";
-                        std::cout << copyResults[i * depths.size() + j] << ";";
+                        resultsStream << copyResults[i * depths.size() + k] << ";";
+                        std::cout << copyResults[i * depths.size() + k] << ";";
                     }
                 }
                 resultsStream << std::endl;
                 std::cout << std::endl;
                 // print vptr times
-                resultsStream << "Виртуализация;";
-                std::cout << "Виртуализация;";
+                resultsStream << "Virtual;";
+                std::cout << "Virtual;";
                 for (size_t i = 0; i < depths.size(); ++i)
                 {
-                    for (size_t j = 0; j < streamConstitutes.size(); ++j)
+                    for (size_t k = 0; k < streamConstitutes.size(); ++k)
                     {
-                        resultsStream << vptrResults[i * depths.size() + j] << ";";
-                        std::cout << vptrResults[i * depths.size() + j] << ";";
+                        resultsStream << vptrResults[i * depths.size() + k] << ";";
+                        std::cout << vptrResults[i * depths.size() + k] << ";";
                     }
                 }
                 resultsStream << std::endl;
