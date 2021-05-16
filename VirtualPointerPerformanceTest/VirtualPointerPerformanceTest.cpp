@@ -41,16 +41,14 @@ int main()
             constexpr auto repeatsOutside = 1;
             const auto depths = { /*1, 2, */4 };
         	const auto streamConstitutes = {
-            	stream{5120, 1000000},
-                stream{51200, 100000},
-                stream{512000, 10000},
-                stream{5120000, 1000}
+                /*stream{51200, 300000},*/
+                stream{512000, 30000}/*,
+                stream{5120000, 3000}*/
             };
             const auto packetSizes = {
-                "5 kb",
-                "50 kb",
-                "500 kb",
-                "5 mb"
+                /*"50 kb",*/
+                "500 kb"/*,
+                "5 mb"*/
             };
             resultsStream << ARCHITECTURE << std::endl;
             for (auto j = 0; j < repeatsOutside; ++j)

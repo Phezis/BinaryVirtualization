@@ -91,6 +91,12 @@ size_t copyDeepDown(vector<byte>& to, vector<byte>& from, const size_t fromSize,
 	for (size_t fromId = 0; fromId < minSize - 1; toId += payloadSize, fromId += payloadSize)
 	{
 		fromId += headerSize;
+		/*const auto to_ = to.data() + toId;
+		const auto from_ = from.data() + fromId;
+		for (size_t i = 0; i < payloadSize; ++i)
+		{
+			to_[i] = from_[i];
+		}*/
 		memcpy(to.data() + toId, from.data() + fromId, payloadSize);
 	}
 	return toId;
@@ -191,11 +197,9 @@ void Test::recursiveVptr(VirtualPointer<byte>& majorVptr, const size_t depth)
 	}
 	else
 	{
-		auto vp = vptr;
-		for (; vp.bytesRemaining(); ++vp)
+		for (auto vp = vptr; 0 != vp.bytesRemaining(); ++vp)
 		{
-			auto& element = *vp;
-			++element;
+			++(*vp);
 		}
 		copyToDecoderBuffer(m_decoderArray, vptr, vptr.bytesRemaining());
 	}

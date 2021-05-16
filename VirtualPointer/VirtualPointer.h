@@ -95,7 +95,7 @@ private:
 	signed_size_t m_curTIdx = 0;
 	chunk m_currentChunk{};
 	// contains the number of remaining bytes
-	mutable std::size_t m_byteFromStart = 0;
+	std::size_t m_byteFromStart = 0;
 
 
 
@@ -150,8 +150,8 @@ private:
 	void revalidateIndexes();
 
 	
-	void decreaseBytesFromStart(std::size_t value) const;
-	void increaseBytesFromStart(std::size_t value) const;
+	void decreaseBytesFromStart(std::size_t value);
+	void increaseBytesFromStart(std::size_t value);
 };
 
 template <typename T>
@@ -194,13 +194,13 @@ void VirtualPointer<T>::revalidateIndexes()
 }
 
 template <typename T>
-void VirtualPointer<T>::decreaseBytesFromStart(const std::size_t value) const
+void VirtualPointer<T>::decreaseBytesFromStart(const std::size_t value)
 {
 	m_byteFromStart -= value;
 }
 
 template <typename T>
-void VirtualPointer<T>::increaseBytesFromStart(const std::size_t value) const
+void VirtualPointer<T>::increaseBytesFromStart(const std::size_t value)
 {
 	m_byteFromStart += value;
 }
@@ -1151,14 +1151,25 @@ void VirtualPointer<T>::chunksCollection::removePointer(VirtualPointer<T>* virtu
 template <typename T>
 void VirtualPointer<T>::toNextElement()
 {
+	increaseBytesFromStart(sizeof(T));
 	++m_curTIdx;
-	while(m_curTIdx >= static_cast<signed_size_t>(currentChunkSize()) && m_curChunkIdx + 1 < m_chunks->getChunks().size())
+	/*for(; m_curTIdx >= static_cast<signed_size_t>(currentChunkSize()) && m_curChunkIdx + 1 < m_chunks->getChunks().size(); ++m_curChunkIdx)
+	{
+		m_curTIdx -= currentChunkSize();
+		m_currentChunk = m_chunks->getChunks()[m_curChunkIdx + 1];
+	}*/
+	if (m_curTIdx >= static_cast<signed_size_t>(currentChunkSize()) && m_curChunkIdx + 1 < m_chunks->getChunks().size())
+	{
+		m_curTIdx = 0;
+		++m_curChunkIdx;
+		m_currentChunk = m_chunks->getChunks()[m_curChunkIdx];
+	}
+	/*while (m_curTIdx >= static_cast<signed_size_t>(currentChunkSize()) && m_curChunkIdx + 1 < m_chunks->getChunks().size())
 	{
 		m_curTIdx -= currentChunkSize();
 		++m_curChunkIdx;
 		m_currentChunk = m_chunks->getChunks()[m_curChunkIdx];
-	}
-	increaseBytesFromStart(sizeof(T));
+	}*/
 }
 
 template <typename T>
