@@ -3170,6 +3170,11 @@ void BytesRemainingArithmeticOperations(P srcArr, const size_t srcArrSize)
 
 	auto shift = 0;
 
+	if(getBytesCount(chunksSize - shift) == 126)
+	{
+		EXPECT_TRUE(true);
+	}
+
 	EXPECT_EQ(getBytesCount(chunksSize - shift), srcPtr.bytesRemaining());
 	++srcPtr;
 	++shift;

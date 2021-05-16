@@ -194,7 +194,8 @@ void Test::recursiveVptr(VirtualPointer<byte>& majorVptr, const size_t depth)
 		auto vp = vptr;
 		for (; vp.bytesRemaining(); ++vp)
 		{
-			++(*vp);
+			auto& element = *vp;
+			++element;
 		}
 		copyToDecoderBuffer(m_decoderArray, vptr, vptr.bytesRemaining());
 	}

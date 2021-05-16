@@ -10,8 +10,6 @@
 #include <cstring>
 #include <functional>
 #include <stdexcept>
-#include <unordered_set>
-#include <unordered_map>
 
 template <typename T>
 class VirtualPointer final
@@ -22,7 +20,7 @@ public:
 	VirtualPointer(const VirtualPointer& other);
 	VirtualPointer(VirtualPointer&& other) noexcept;
 
-	~VirtualPointer() noexcept;
+	~VirtualPointer() noexcept = default;
 
 	VirtualPointer& operator=(const VirtualPointer& other);
 	VirtualPointer& operator=(VirtualPointer&& other) noexcept;
@@ -86,8 +84,9 @@ public:
 
 private:
 	struct chunk;
+	class chunksCollection;
 	// contains all chunks with their sizes
-	std::shared_ptr<std::vector<chunk>> m_chunks;
+	std::shared_ptr<chunksCollection> m_chunks;
 	T* m_pCurrentChunk = nullptr;
 	// contains the index of a current chunk in chunks collection
 	std::size_t m_curChunkIdx = 0;
@@ -97,19 +96,14 @@ private:
 	// a bytesRemaining of the current chunk
 	std::size_t m_curChunkSize = 0;
 	// contains the number of remaining bytes
-	mutable std::size_t m_bytesRemaining = 0;
-	// Contains the last index of the vector of chunks.
-	// Needed for maintain the correctness of the number of
-	// remaining bytes in the case when another owner of
-	// the vector of chunks added a new chunk
-	mutable std::size_t m_endVectorIndex = 0;
+	mutable std::size_t m_byteFromStart = 0;
 
 
 
 	struct chunk
 	{
-		T* chunkBeginning;
-		std::size_t chunkSize;
+		T* chunkBeginning = nullptr;
+		std::size_t chunkSize = 0;
 
 		chunk() = default;
 		chunk(const chunk& other) = default;
@@ -122,23 +116,18 @@ private:
 		chunk& operator=(chunk&& other) = default;
 	};
 
-	// Ensures correct indexing for all copies when
-	// a new chunk is added to one of the copies
-	using ReferencingCopies = std::unordered_set<VirtualPointer<T>*>;
-	struct ReferencesToChunksCollection
+	class chunksCollection
 	{
-		std::unordered_map<std::shared_ptr<std::vector<chunk>>, ReferencingCopies> referencesToChunksCollections;
+		std::vector<chunk> m_chunks{};
+		std::size_t m_sizeInBytes = 0;
 
-		void addReference(const std::shared_ptr<std::vector<chunk>>& chunks, VirtualPointer<T>* reference);
-		void removeReference(const std::shared_ptr<std::vector<chunk>>& chunks, VirtualPointer<T>* reference);
+	public:
+		std::vector<chunk>& getChunks();
 
-		void validateContextForEachCopy(const std::shared_ptr<std::vector<chunk>>& chunks);
+		void emplace(chunk&& chunk);
+
+		std::size_t chunksSizeInBytes() const;
 	};
-
-	friend ReferencesToChunksCollection;
-
-	static ReferencesToChunksCollection m_referencesToChunksCollection;
-
 
 private:
 
@@ -153,10 +142,9 @@ private:
 	bool outOfRangeWithRevalidateIndexes();
 
 	void revalidateIndexes();
-
-	void validateBytesRemaining() const;
-	void increaseBytesRemaining(std::size_t value) const;
-	void decreaseBytesRemaining(std::size_t value) const;
+	
+	void decreaseBytesFromStart(std::size_t value) const;
+	void increaseBytesFromStart(std::size_t value) const;
 };
 
 template <typename T>
@@ -168,67 +156,50 @@ VirtualPointer<T> operator+(const std::size_t& shift, VirtualPointer<T> ptr);
 template <typename T>
 VirtualPointer<T> operator-(VirtualPointer<T> ptr, const std::size_t& shift);
 
-template<typename T>
-typename VirtualPointer<T>::ReferencesToChunksCollection VirtualPointer<T>::m_referencesToChunksCollection{};
-
 
 template <typename T>
 bool VirtualPointer<T>::outOfRange() const
 {
-	return m_chunks->empty() || (m_curChunkIdx + 1 == m_chunks->size() && static_cast<size_t>(m_curTIdx) >= m_curChunkSize);
+	return m_chunks->getChunks().empty() || (m_curChunkIdx + 1 == m_chunks->getChunks().size() && static_cast<size_t>(m_curTIdx) >= m_curChunkSize);
 }
 
 
 template <typename T>
 void VirtualPointer<T>::revalidateIndexes()
 {
-	if (!m_pCurrentChunk && !m_chunks->empty())
+	if (!m_pCurrentChunk && !m_chunks->getChunks().empty())
 	{
-		m_pCurrentChunk = (*m_chunks)[m_curChunkIdx].chunkBeginning;
+		m_pCurrentChunk = m_chunks->getChunks()[m_curChunkIdx].chunkBeginning;
 	}
-	if (!m_curChunkSize && m_curChunkIdx < m_chunks->size())
+	if (!m_curChunkSize && m_curChunkIdx < m_chunks->getChunks().size())
 	{
-		m_curChunkSize = (*m_chunks)[m_curChunkIdx].chunkSize;
+		m_curChunkSize = m_chunks->getChunks()[m_curChunkIdx].chunkSize;
 	}
-	while (m_curChunkIdx < m_chunks->size() - 1 && static_cast<size_t>(m_curTIdx) >= m_curChunkSize)
+	while (m_curChunkIdx < m_chunks->getChunks().size() - 1 && static_cast<size_t>(m_curTIdx) >= m_curChunkSize)
 	{
 		m_curTIdx -= m_curChunkSize;
 		++m_curChunkIdx;
-		m_pCurrentChunk = (*m_chunks)[m_curChunkIdx].chunkBeginning;
-		m_curChunkSize = (*m_chunks)[m_curChunkIdx].chunkSize;
+		m_pCurrentChunk = m_chunks->getChunks()[m_curChunkIdx].chunkBeginning;
+		m_curChunkSize = m_chunks->getChunks()[m_curChunkIdx].chunkSize;
 	}
 }
 
 template <typename T>
-void VirtualPointer<T>::validateBytesRemaining() const
+void VirtualPointer<T>::decreaseBytesFromStart(const std::size_t value) const
 {
-	if (m_endVectorIndex == m_chunks->size())
-	{
-		return;
-	}
-	for (auto i = m_endVectorIndex; i < m_chunks->size(); ++i)
-	{
-		m_bytesRemaining += (*m_chunks)[i].chunkSize * sizeof(T);
-	}
-	m_endVectorIndex = m_chunks->size();
+	m_byteFromStart -= value;
 }
 
 template <typename T>
-void VirtualPointer<T>::increaseBytesRemaining(const std::size_t value) const
+void VirtualPointer<T>::increaseBytesFromStart(const std::size_t value) const
 {
-	m_bytesRemaining += value;
-}
-
-template <typename T>
-void VirtualPointer<T>::decreaseBytesRemaining(const std::size_t value) const
-{
-	m_bytesRemaining -= value;
+	m_byteFromStart += value;
 }
 
 template <typename T>
 bool VirtualPointer<T>::outOfRangeWithRevalidateIndexes()
 {
-	if (m_chunks->empty())
+	if (m_chunks->getChunks().empty())
 	{
 		return true;
 	}
@@ -244,9 +215,8 @@ T min(T f, T s)
 
 template <typename T>
 VirtualPointer<T>::VirtualPointer() :
-	m_chunks(std::make_shared<std::vector<chunk>>())
+	m_chunks(std::make_shared<chunksCollection>())
 {
-	m_referencesToChunksCollection.addReference(m_chunks, this);
 }
 
 template <typename T>
@@ -256,37 +226,19 @@ VirtualPointer<T>::VirtualPointer(const VirtualPointer& other) :
 	m_curChunkIdx(other.m_curChunkIdx),
 	m_curTIdx(other.m_curTIdx),
 	m_curChunkSize(other.m_curChunkSize),
-	m_bytesRemaining(other.m_bytesRemaining),
-	m_endVectorIndex(other.m_endVectorIndex)
+	m_byteFromStart(other.m_byteFromStart)
 {
-	m_referencesToChunksCollection.addReference(m_chunks, this);
 }
 
 template <typename T>
 VirtualPointer<T>::VirtualPointer(VirtualPointer&& other) noexcept :
 	m_chunks(std::move(other.m_chunks))
 {
-	m_referencesToChunksCollection.removeReference(m_chunks, &other);
-
 	m_pCurrentChunk = other.m_pCurrentChunk;
 	m_curChunkIdx = other.m_curChunkIdx;
 	m_curTIdx = other.m_curTIdx;
 	m_curChunkSize = other.m_curChunkSize;
-	m_bytesRemaining = other.m_bytesRemaining;
-	m_endVectorIndex = other.m_endVectorIndex;
-
-	m_referencesToChunksCollection.addReference(m_chunks, this);
-}
-
-template <typename T>
-VirtualPointer<T>::~VirtualPointer() noexcept
-{
-	if (nullptr != m_chunks) {
-		try {
-			m_referencesToChunksCollection.removeReference(m_chunks, this);
-		}
-		catch (const std::exception&) {}
-	}
+	m_byteFromStart = other.m_byteFromStart;
 }
 
 template <typename T>
@@ -294,17 +246,12 @@ VirtualPointer<T>& VirtualPointer<T>::operator=(const VirtualPointer& other)
 {
 	if (&other != this)
 	{
-		m_referencesToChunksCollection.removeReference(m_chunks, this);
-
 		m_chunks = other.m_chunks;
 		m_pCurrentChunk = other.m_pCurrentChunk;
 		m_curChunkIdx = other.m_curChunkIdx;
 		m_curTIdx = other.m_curTIdx;
 		m_curChunkSize = other.m_curChunkSize;
-		m_bytesRemaining = other.m_bytesRemaining;
-		m_endVectorIndex = other.m_endVectorIndex;
-
-		m_referencesToChunksCollection.addReference(m_chunks, this);
+		m_byteFromStart = other.m_byteFromStart;
 	}
 	return *this;
 }
@@ -314,18 +261,12 @@ VirtualPointer<T>& VirtualPointer<T>::operator=(VirtualPointer&& other) noexcept
 {
 	if (&other != this)
 	{
-		m_referencesToChunksCollection.removeReference(other.m_chunks, &other);
-		m_referencesToChunksCollection.removeReference(m_chunks, this);
-
 		m_chunks = std::move(other.m_chunks);
 		m_pCurrentChunk = other.m_pCurrentChunk;
 		m_curChunkIdx = other.m_curChunkIdx;
 		m_curTIdx = other.m_curTIdx;
 		m_curChunkSize = other.m_curChunkSize;
-		m_bytesRemaining = other.m_bytesRemaining;
-		m_endVectorIndex = other.m_endVectorIndex;
-
-		m_referencesToChunksCollection.addReference(m_chunks, this);
+		m_byteFromStart = other.m_byteFromStart;
 	}
 	return *this;
 }
@@ -349,10 +290,10 @@ template <typename T>
 VirtualPointer<T>& VirtualPointer<T>::operator+=(const std::size_t shift)
 {
 	std::size_t localShift = shift;
-	decreaseBytesRemaining(shift * sizeof(T));
+	increaseBytesFromStart(shift * sizeof(T));
 	if (m_curTIdx + localShift >= m_curChunkSize)
 	{
-		if (m_curChunkIdx + 1 >= m_chunks->size())
+		if (m_curChunkIdx + 1 >= m_chunks->getChunks().size())
 		{
 			m_curTIdx += localShift;
 			return *this;
@@ -360,16 +301,16 @@ VirtualPointer<T>& VirtualPointer<T>::operator+=(const std::size_t shift)
 		localShift -= m_curChunkSize - m_curTIdx;
 		m_curTIdx = 0;
 		++m_curChunkIdx;
-		auto chunk = m_chunks->cbegin() + m_curChunkIdx;
+		auto chunk = m_chunks->getChunks().cbegin() + m_curChunkIdx;
 		m_curChunkSize = chunk->chunkSize;
 		++chunk;
-		for (; chunk != m_chunks->cend() && localShift >= m_curChunkSize; ++chunk)
+		for (; chunk != m_chunks->getChunks().cend() && localShift >= m_curChunkSize; ++chunk)
 		{
 			localShift -= m_curChunkSize;
 			m_curChunkSize = chunk->chunkSize;
 		}
-		m_curChunkIdx = chunk - m_chunks->cbegin() - 1;
-		m_pCurrentChunk = (*m_chunks)[m_curChunkIdx].chunkBeginning;
+		m_curChunkIdx = chunk - m_chunks->getChunks().cbegin() - 1;
+		m_pCurrentChunk = m_chunks->getChunks()[m_curChunkIdx].chunkBeginning;
 	}
 	m_curTIdx += localShift;
 	return *this;
@@ -383,7 +324,7 @@ VirtualPointer<T>& memset(VirtualPointer<T>& dest, const V& value, std::size_t c
 	{
 		return dest;
 	}
-	if (dest.m_chunks->empty())
+	if (dest.m_chunks->getChunks().empty())
 	{
 		throw NullPointerException();
 	}
@@ -391,7 +332,7 @@ VirtualPointer<T>& memset(VirtualPointer<T>& dest, const V& value, std::size_t c
 	{
 		throw std::out_of_range("Attempt to go abroad the memory");
 	}
-	auto chunk = dest.m_chunks->begin() + dest.m_curChunkIdx;
+	auto chunk = dest.m_chunks->getChunks().begin() + dest.m_curChunkIdx;
 	T* ptr = chunk->chunkBeginning + dest.m_curTIdx;
 	for (std::size_t i = dest.m_curTIdx; i < dest.m_curChunkSize; ++i)
 	{
@@ -403,7 +344,7 @@ VirtualPointer<T>& memset(VirtualPointer<T>& dest, const V& value, std::size_t c
 		--count;
 		++ptr;
 	}
-	for (++chunk; chunk < dest.m_chunks->end() - 1; ++chunk)
+	for (++chunk; chunk < dest.m_chunks->getChunks().end() - 1; ++chunk)
 	{
 		ptr = chunk->chunkBeginning;
 		for (std::size_t i = 0; i < chunk->chunkSize; ++i)
@@ -417,7 +358,7 @@ VirtualPointer<T>& memset(VirtualPointer<T>& dest, const V& value, std::size_t c
 			++ptr;
 		}
 	}
-	if (chunk >= dest.m_chunks->end())
+	if (chunk >= dest.m_chunks->getChunks().end())
 	{
 		throw std::out_of_range("Attempt to go abroad the memory");
 	}
@@ -442,7 +383,7 @@ VirtualPointer<T>& memcpy(VirtualPointer<T>& dest, const VirtualPointer<T>& src,
 	{
 		return dest;
 	}
-	if (src.m_chunks->empty() || dest.m_chunks->empty())
+	if (src.m_chunks->getChunks().empty() || dest.m_chunks->getChunks().empty())
 	{
 		throw NullPointerException();
 	}
@@ -457,8 +398,8 @@ VirtualPointer<T>& memcpy(VirtualPointer<T>& dest, const VirtualPointer<T>& src,
 	std::size_t blockMemLeft = dest.m_curChunkSize - dest.m_curTIdx;
 	std::size_t srcBlockMemLeft = src.m_curChunkSize - src.m_curTIdx;
 
-	T* destPtr = (*(dest.m_chunks))[curChunkIdx].chunkBeginning + dest.m_curTIdx;
-	const T* srcPtr = (*(src.m_chunks))[curSrcChunkIdx].chunkBeginning + src.m_curTIdx;
+	T* destPtr = dest.m_chunks->getChunks()[curChunkIdx].chunkBeginning + dest.m_curTIdx;
+	const T* srcPtr = src.m_chunks->getChunks()[curSrcChunkIdx].chunkBeginning + src.m_curTIdx;
 
 	auto memoryOver = false;
 
@@ -482,27 +423,27 @@ VirtualPointer<T>& memcpy(VirtualPointer<T>& dest, const VirtualPointer<T>& src,
 		if (!blockMemLeft)
 		{
 			++curChunkIdx;
-			if (dest.m_chunks->size() <= curChunkIdx)
+			if (dest.m_chunks->getChunks().size() <= curChunkIdx)
 			{
 				memoryOver = true;
 			}
 			else
 			{
-				destPtr = (*(dest.m_chunks))[curChunkIdx].chunkBeginning;
-				blockMemLeft = (*(dest.m_chunks))[curChunkIdx].chunkSize;
+				destPtr = dest.m_chunks->getChunks()[curChunkIdx].chunkBeginning;
+				blockMemLeft = dest.m_chunks->getChunks()[curChunkIdx].chunkSize;
 			}
 		}
 		if (!srcBlockMemLeft)
 		{
 			++curSrcChunkIdx;
-			if (src.m_chunks->size() <= curSrcChunkIdx)
+			if (src.m_chunks->getChunks().size() <= curSrcChunkIdx)
 			{
 				memoryOver = true;
 			}
 			else
 			{
-				srcPtr = (*(src.m_chunks))[curSrcChunkIdx].chunkBeginning;
-				srcBlockMemLeft = (*(src.m_chunks))[curSrcChunkIdx].chunkSize;
+				srcPtr = src.m_chunks->getChunks()[curSrcChunkIdx].chunkBeginning;
+				srcBlockMemLeft = src.m_chunks->getChunks()[curSrcChunkIdx].chunkSize;
 			}
 		}
 	}
@@ -515,7 +456,7 @@ VirtualPointer<T>& memcpy(VirtualPointer<T>& dest, const void* src, std::size_t 
 	{
 		return dest;
 	}
-	if (!src || dest.m_chunks->empty())
+	if (!src || dest.m_chunks->getChunks().empty())
 	{
 		throw NullPointerException();
 	}
@@ -527,7 +468,7 @@ VirtualPointer<T>& memcpy(VirtualPointer<T>& dest, const void* src, std::size_t 
 
 	std::size_t blockMemLeft = dest.m_curChunkSize - dest.m_curTIdx;
 
-	T* destPtr = (*(dest.m_chunks))[curChunkIdx].chunkBeginning + dest.m_curTIdx;
+	T* destPtr = dest.m_chunks->getChunks()[curChunkIdx].chunkBeginning + dest.m_curTIdx;
 	const T* srcPtr = static_cast<const T*>(src);
 
 	auto memoryOver = false;
@@ -551,14 +492,14 @@ VirtualPointer<T>& memcpy(VirtualPointer<T>& dest, const void* src, std::size_t 
 		if (!blockMemLeft)
 		{
 			++curChunkIdx;
-			if (dest.m_chunks->size() <= curChunkIdx)
+			if (dest.m_chunks->getChunks().size() <= curChunkIdx)
 			{
 				memoryOver = true;
 			}
 			else
 			{
-				destPtr = (*(dest.m_chunks))[curChunkIdx].chunkBeginning;
-				blockMemLeft = (*(dest.m_chunks))[curChunkIdx].chunkSize;
+				destPtr = dest.m_chunks->getChunks()[curChunkIdx].chunkBeginning;
+				blockMemLeft = dest.m_chunks->getChunks()[curChunkIdx].chunkSize;
 			}
 		}
 	}
@@ -571,7 +512,7 @@ void* memcpy(void* dest, const VirtualPointer<T>& src, std::size_t count)
 	{
 		return dest;
 	}
-	if (!dest || src.m_chunks->empty())
+	if (!dest || src.m_chunks->getChunks().empty())
 	{
 		throw NullPointerException();
 	}
@@ -585,7 +526,7 @@ void* memcpy(void* dest, const VirtualPointer<T>& src, std::size_t count)
 	std::size_t srcBlockMemLeft = src.m_curChunkSize - src.m_curTIdx;
 
 	T* destPtr = static_cast<T*>(dest);
-	const T* srcPtr = (*(src.m_chunks))[curSrcChunkIdx].chunkBeginning + src.m_curTIdx;
+	const T* srcPtr = src.m_chunks->getChunks()[curSrcChunkIdx].chunkBeginning + src.m_curTIdx;
 
 	auto memoryOver = false;
 
@@ -608,14 +549,14 @@ void* memcpy(void* dest, const VirtualPointer<T>& src, std::size_t count)
 		if (!srcBlockMemLeft)
 		{
 			++curSrcChunkIdx;
-			if (src.m_chunks->size() <= curSrcChunkIdx)
+			if (src.m_chunks->getChunks().size() <= curSrcChunkIdx)
 			{
 				memoryOver = true;
 			}
 			else
 			{
-				srcPtr = (*(src.m_chunks))[curSrcChunkIdx].chunkBeginning;
-				srcBlockMemLeft = (*(src.m_chunks))[curSrcChunkIdx].chunkSize;
+				srcPtr = src.m_chunks->getChunks()[curSrcChunkIdx].chunkBeginning;
+				srcBlockMemLeft = src.m_chunks->getChunks()[curSrcChunkIdx].chunkSize;
 			}
 		}
 	}
@@ -628,7 +569,7 @@ VirtualPointer<T>& memmove(VirtualPointer<T>& dest, const VirtualPointer<T>& src
 	{
 		return dest;
 	}
-	if (dest.m_chunks->empty() || src.m_chunks->empty())
+	if (dest.m_chunks->getChunks().empty() || src.m_chunks->getChunks().empty())
 	{
 		throw NullPointerException();
 	}
@@ -662,7 +603,7 @@ VirtualPointer<T>& memmove(VirtualPointer<T>& dest, const void* src, std::size_t
 	{
 		return dest;
 	}
-	if (dest.m_chunks->empty() || !src)
+	if (dest.m_chunks->getChunks().empty() || !src)
 	{
 		throw NullPointerException();
 	}
@@ -696,7 +637,7 @@ void* memmove(void* dest, const VirtualPointer<T>& src, std::size_t count)
 	{
 		return dest;
 	}
-	if (!dest || src.m_chunks->empty())
+	if (!dest || src.m_chunks->getChunks().empty())
 	{
 		throw NullPointerException();
 	}
@@ -754,14 +695,14 @@ template <typename T>
 VirtualPointer<T>& VirtualPointer<T>::operator-=(const std::size_t shift)
 {
 	std::size_t localShift = shift;
-	increaseBytesRemaining(shift * sizeof(T));
+	decreaseBytesFromStart(shift * sizeof(T));
 	while (static_cast<size_t>(m_curTIdx) < localShift)
 	{
 		if (m_curChunkIdx)
 		{
 			localShift -= m_curTIdx + 1;
 			--m_curChunkIdx;
-			m_curChunkSize = (*m_chunks)[m_curChunkIdx].chunkSize;
+			m_curChunkSize = m_chunks->getChunks()[m_curChunkIdx].chunkSize;
 			m_curTIdx = m_curChunkSize - 1;
 		}
 		else
@@ -772,7 +713,7 @@ VirtualPointer<T>& VirtualPointer<T>::operator-=(const std::size_t shift)
 		}
 	}
 	m_curTIdx -= localShift;
-	m_pCurrentChunk = (*m_chunks)[m_curChunkIdx].chunkBeginning;
+	m_pCurrentChunk = m_chunks->getChunks()[m_curChunkIdx].chunkBeginning;
 	return *this;
 }
 
@@ -788,16 +729,16 @@ T& VirtualPointer<T>::operator[](std::size_t idx)
 		idx -= curChunkSize - curTIdx;
 		curTIdx = 0;
 		++curChunkIdx;
-		curChunkSize = (*m_chunks)[curChunkIdx].chunkSize;
+		curChunkSize = m_chunks->getChunks()[curChunkIdx].chunkSize;
 		while (idx >= curChunkSize)
 		{
 			idx -= curChunkSize;
 			++curChunkIdx;
-			curChunkSize = (*m_chunks)[curChunkIdx].chunkSize;
+			curChunkSize = m_chunks->getChunks()[curChunkIdx].chunkSize;
 		}
 	}
 	curTIdx += idx;
-	return (*m_chunks)[curChunkIdx].chunkBeginning[curTIdx];
+	return m_chunks->getChunks()[curChunkIdx].chunkBeginning[curTIdx];
 }
 
 template <typename T>
@@ -834,11 +775,11 @@ void VirtualPointer<T>::addChunk(T* ptr, std::size_t length)
 				m_curChunkSize = length;
 				tryShiftChunkIdx = true;
 			}
-			if (m_chunks->empty())
+			if (m_chunks->getChunks().empty())
 			{
 				tryShiftChunkIdx = false;
 			}
-			m_chunks->emplace_back(chunk(ptr, length));
+			m_chunks->emplace(chunk(ptr, length));
 			if (static_cast<size_t>(m_curTIdx) < m_curChunkSize)
 			{
 				if (tryShiftChunkIdx)
@@ -846,10 +787,9 @@ void VirtualPointer<T>::addChunk(T* ptr, std::size_t length)
 					m_curChunkIdx++;
 				}
 			}
-			m_pCurrentChunk = (*m_chunks)[m_curChunkIdx].chunkBeginning;
+			m_pCurrentChunk = m_chunks->getChunks()[m_curChunkIdx].chunkBeginning;
 		}
 	}
-	m_referencesToChunksCollection.validateContextForEachCopy(m_chunks);
 }
 
 template <typename T>
@@ -865,26 +805,26 @@ void VirtualPointer<T>::addChunk(const VirtualPointer& src, std::size_t count)
 	auto curChunkIdx = m_curChunkIdx;
 	auto curOutOfRange = outOfRangeWithRevalidateIndexes();
 	auto again = true;
-	const auto wasEmpty = m_chunks->empty();
+	const auto wasEmpty = m_chunks->getChunks().empty();
 	while (again)
 	{
-		if ((*(src.m_chunks))[curSrcChunkIdx].chunkSize >= count + curSrcTIdx)
+		if (src.m_chunks->getChunks()[curSrcChunkIdx].chunkSize >= count + curSrcTIdx)
 		{
-			m_chunks->emplace_back(chunk((*(src.m_chunks))[curSrcChunkIdx].chunkBeginning + curSrcTIdx, count));
+			m_chunks->emplace(chunk(src.m_chunks->getChunks()[curSrcChunkIdx].chunkBeginning + curSrcTIdx, count));
 			again = false;
 		}
 		else
 		{
-			m_chunks->emplace_back(chunk(
-				(*(src.m_chunks))[curSrcChunkIdx].chunkBeginning + curSrcTIdx,
-				(*(src.m_chunks))[curSrcChunkIdx].chunkSize - curSrcTIdx
+			m_chunks->emplace(chunk(
+				src.m_chunks->getChunks()[curSrcChunkIdx].chunkBeginning + curSrcTIdx,
+				src.m_chunks->getChunks()[curSrcChunkIdx].chunkSize - curSrcTIdx
 			)
 			);
-			count -= (*(src.m_chunks))[curSrcChunkIdx].chunkSize - curSrcTIdx;
+			count -= src.m_chunks->getChunks()[curSrcChunkIdx].chunkSize - curSrcTIdx;
 		}
 		if (curOutOfRange)
 		{
-			if ((*(src.m_chunks))[curSrcChunkIdx].chunkSize - curSrcTIdx >= (curTIdx - m_curChunkSize))
+			if (src.m_chunks->getChunks()[curSrcChunkIdx].chunkSize - curSrcTIdx >= (curTIdx - m_curChunkSize))
 			{
 				// out of range and zero curTIdx both mean this was empty
 				if (curTIdx)
@@ -899,7 +839,7 @@ void VirtualPointer<T>::addChunk(const VirtualPointer& src, std::size_t count)
 			}
 			else
 			{
-				curTIdx -= (*m_chunks)[curChunkIdx].chunkSize;
+				curTIdx -= m_chunks->getChunks()[curChunkIdx].chunkSize;
 			}
 			++curChunkIdx;
 			if (curTIdx < static_cast<signed_size_t>(m_curChunkSize))
@@ -912,29 +852,25 @@ void VirtualPointer<T>::addChunk(const VirtualPointer& src, std::size_t count)
 	}
 	m_curTIdx = curTIdx;
 	m_curChunkIdx = curChunkIdx;
-	m_pCurrentChunk = (*m_chunks)[m_curChunkIdx].chunkBeginning;
-	m_curChunkSize = (*m_chunks)[m_curChunkIdx].chunkSize;
-	m_referencesToChunksCollection.validateContextForEachCopy(m_chunks);
+	m_pCurrentChunk = m_chunks->getChunks()[m_curChunkIdx].chunkBeginning;
+	m_curChunkSize = m_chunks->getChunks()[m_curChunkIdx].chunkSize;
 }
 
 template <typename T>
 std::size_t VirtualPointer<T>::bytesRemaining() const
 {
-	return m_bytesRemaining;
+	return m_chunks->chunksSizeInBytes() - m_byteFromStart;
 }
 
 template <typename T>
 inline void VirtualPointer<T>::clear()
 {
-	m_referencesToChunksCollection.removeReference(m_chunks, this);
-	m_chunks = std::make_shared<std::vector<chunk>>();
+	m_chunks = std::make_shared<chunksCollection>();
 	m_pCurrentChunk = nullptr;
 	m_curChunkIdx = 0;
 	m_curTIdx = 0;
 	m_curChunkSize = 0;
-	m_bytesRemaining = 0;
-	m_endVectorIndex = 0;
-	m_referencesToChunksCollection.addReference(m_chunks, this);
+	m_byteFromStart = 0;
 }
 
 template <typename T>
@@ -950,7 +886,7 @@ int memcmp(const VirtualPointer<T>& dest, const VirtualPointer<T>& src, std::siz
 	{
 		return 0;
 	}
-	if (src.m_chunks->empty() || dest.m_chunks->empty())
+	if (src.m_chunks->getChunks().empty() || dest.m_chunks->getChunks().empty())
 	{
 		throw NullPointerException();
 	}
@@ -965,8 +901,8 @@ int memcmp(const VirtualPointer<T>& dest, const VirtualPointer<T>& src, std::siz
 	std::size_t blockMemLeft = dest.m_curChunkSize - dest.m_curTIdx;
 	std::size_t srcBlockMemLeft = src.m_curChunkSize - src.m_curTIdx;
 
-	T* destPtr = (*(dest.m_chunks))[curChunkIdx].chunkBeginning + dest.m_curTIdx;
-	const T* srcPtr = (*(src.m_chunks))[curSrcChunkIdx].chunkBeginning + src.m_curTIdx;
+	T* destPtr = dest.m_chunks->getChunks()[curChunkIdx].chunkBeginning + dest.m_curTIdx;
+	const T* srcPtr = src.m_chunks->getChunks()[curSrcChunkIdx].chunkBeginning + src.m_curTIdx;
 
 	auto memoryOver = false;
 
@@ -994,27 +930,27 @@ int memcmp(const VirtualPointer<T>& dest, const VirtualPointer<T>& src, std::siz
 		if (!blockMemLeft)
 		{
 			++curChunkIdx;
-			if (dest.m_chunks->size() <= curChunkIdx)
+			if (dest.m_chunks->getChunks().size() <= curChunkIdx)
 			{
 				memoryOver = true;
 			}
 			else
 			{
-				destPtr = (*(dest.m_chunks))[curChunkIdx].chunkBeginning;
-				blockMemLeft = (*(dest.m_chunks))[curChunkIdx].chunkSize;
+				destPtr = dest.m_chunks->getChunks()[curChunkIdx].chunkBeginning;
+				blockMemLeft = dest.m_chunks->getChunks()[curChunkIdx].chunkSize;
 			}
 		}
 		if (!srcBlockMemLeft)
 		{
 			++curSrcChunkIdx;
-			if (src.m_chunks->size() <= curSrcChunkIdx)
+			if (src.m_chunks->getChunks().size() <= curSrcChunkIdx)
 			{
 				memoryOver = true;
 			}
 			else
 			{
-				srcPtr = (*(src.m_chunks))[curSrcChunkIdx].chunkBeginning;
-				srcBlockMemLeft = (*(src.m_chunks))[curSrcChunkIdx].chunkSize;
+				srcPtr = src.m_chunks->getChunks()[curSrcChunkIdx].chunkBeginning;
+				srcBlockMemLeft = src.m_chunks->getChunks()[curSrcChunkIdx].chunkSize;
 			}
 		}
 	}
@@ -1027,7 +963,7 @@ int memcmp(const VirtualPointer<T>& dest, const void* src, std::size_t count)
 	{
 		return 0;
 	}
-	if (!src || dest.m_chunks->empty())
+	if (!src || dest.m_chunks->getChunks().empty())
 	{
 		throw NullPointerException();
 	}
@@ -1039,7 +975,7 @@ int memcmp(const VirtualPointer<T>& dest, const void* src, std::size_t count)
 
 	std::size_t blockMemLeft = dest.m_curChunkSize - dest.m_curTIdx;
 
-	T* destPtr = (*(dest.m_chunks))[curChunkIdx].chunkBeginning + dest.m_curTIdx;
+	T* destPtr = dest.m_chunks->getChunks()[curChunkIdx].chunkBeginning + dest.m_curTIdx;
 	const T* srcPtr = static_cast<const T*>(src);
 
 	auto memoryOver = false;
@@ -1067,14 +1003,14 @@ int memcmp(const VirtualPointer<T>& dest, const void* src, std::size_t count)
 		if (!blockMemLeft)
 		{
 			++curChunkIdx;
-			if (dest.m_chunks->size() <= curChunkIdx)
+			if (dest.m_chunks->getChunks().size() <= curChunkIdx)
 			{
 				memoryOver = true;
 			}
 			else
 			{
-				destPtr = (*(dest.m_chunks))[curChunkIdx].chunkBeginning;
-				blockMemLeft = (*(dest.m_chunks))[curChunkIdx].chunkSize;
+				destPtr = dest.m_chunks->getChunks()[curChunkIdx].chunkBeginning;
+				blockMemLeft = dest.m_chunks->getChunks()[curChunkIdx].chunkSize;
 			}
 		}
 	}
@@ -1087,7 +1023,7 @@ int memcmp(const void* dest, const VirtualPointer<T>& src, std::size_t count)
 	{
 		return 0;
 	}
-	if (!dest || src.m_chunks->empty())
+	if (!dest || src.m_chunks->getChunks().empty())
 	{
 		throw NullPointerException();
 	}
@@ -1101,7 +1037,7 @@ int memcmp(const void* dest, const VirtualPointer<T>& src, std::size_t count)
 	std::size_t srcBlockMemLeft = src.m_curChunkSize - src.m_curTIdx;
 
 	const T* destPtr = static_cast<const T*>(dest);
-	const T* srcPtr = (*(src.m_chunks))[curSrcChunkIdx].chunkBeginning + src.m_curTIdx;
+	const T* srcPtr = src.m_chunks->getChunks()[curSrcChunkIdx].chunkBeginning + src.m_curTIdx;
 
 	auto memoryOver = false;
 
@@ -1128,14 +1064,14 @@ int memcmp(const void* dest, const VirtualPointer<T>& src, std::size_t count)
 		if (!srcBlockMemLeft)
 		{
 			++curSrcChunkIdx;
-			if (src.m_chunks->size() <= curSrcChunkIdx)
+			if (src.m_chunks->getChunks().size() <= curSrcChunkIdx)
 			{
 				memoryOver = true;
 			}
 			else
 			{
-				srcPtr = (*(src.m_chunks))[curSrcChunkIdx].chunkBeginning;
-				srcBlockMemLeft = (*(src.m_chunks))[curSrcChunkIdx].chunkSize;
+				srcPtr = src.m_chunks->getChunks()[curSrcChunkIdx].chunkBeginning;
+				srcBlockMemLeft = src.m_chunks->getChunks()[curSrcChunkIdx].chunkSize;
 			}
 		}
 	}
@@ -1149,81 +1085,49 @@ VirtualPointer<T>::chunk::chunk(T* chunkBeginning, const std::size_t chunkSize) 
 }
 
 template <typename T>
-void VirtualPointer<T>::ReferencesToChunksCollection::addReference(const std::shared_ptr<std::vector<chunk>>& chunks,
-	VirtualPointer<T>* reference)
+std::vector<typename VirtualPointer<T>::chunk>& VirtualPointer<T>::chunksCollection::getChunks()
 {
-	assert(nullptr != chunks.get());
-	if (nullptr == reference)
-	{
-		return;
-	}
-	auto& references = referencesToChunksCollections[chunks];
-	auto insertingStatus = references.insert(reference);
-	assert(insertingStatus.second);
+	return m_chunks;
 }
 
 template <typename T>
-void VirtualPointer<T>::ReferencesToChunksCollection::removeReference(const std::shared_ptr<std::vector<chunk>>& chunks,
-	VirtualPointer<T>* reference)
+void VirtualPointer<T>::chunksCollection::emplace(chunk&& chunk)
 {
-	assert(nullptr != chunks.get());
-	if (nullptr == reference)
-	{
-		return;
-	}
-	auto& references = referencesToChunksCollections[chunks];
-	auto referenceIterator = references.find(reference);
-	if (references.end() == referenceIterator)
-	{
-		return;
-	}
-	references.erase(referenceIterator);
-	if (references.empty())
-	{
-		auto referencesToChunksCollection = referencesToChunksCollections.find(chunks);
-		assert(referencesToChunksCollections.end() != referencesToChunksCollection);
-		referencesToChunksCollections.erase(referencesToChunksCollection);
-	}
+	m_chunks.emplace_back(chunk);
+	m_sizeInBytes += chunk.chunkSize * sizeof(T);
 }
 
 template <typename T>
-void VirtualPointer<T>::ReferencesToChunksCollection::validateContextForEachCopy(const std::shared_ptr<std::vector<chunk>>& chunks)
+std::size_t VirtualPointer<T>::chunksCollection::chunksSizeInBytes() const
 {
-	auto& references = referencesToChunksCollections.at(chunks);
-	for (auto& reference : references)
-	{
-		reference->validateBytesRemaining();
-	}
+	return m_sizeInBytes;
 }
 
 template <typename T>
 void VirtualPointer<T>::toNextElement()
 {
-	if (m_curTIdx + 1 < 0 || m_curTIdx + 1 < static_cast<signed_size_t>(m_curChunkSize) || m_curChunkIdx + 1 >= m_chunks->size())
-	{
-		++m_curTIdx;
-	}
-	else
+	++m_curTIdx;
+	if(m_curTIdx >= static_cast<signed_size_t>(m_curChunkSize) && m_curChunkIdx + 1 < m_chunks->getChunks().size())
 	{
 		m_curTIdx = 0;
 		++m_curChunkIdx;
-		const auto& pair = (*m_chunks)[m_curChunkIdx];
+		const auto& pair = m_chunks->getChunks()[m_curChunkIdx];
 		m_pCurrentChunk = pair.chunkBeginning;
 		m_curChunkSize = pair.chunkSize;
 	}
-	decreaseBytesRemaining(sizeof(T));
+	increaseBytesFromStart(sizeof(T));
 }
 
 template <typename T>
 void VirtualPointer<T>::toPrevElement()
 {
-	increaseBytesRemaining(sizeof(T));
+	decreaseBytesFromStart(sizeof(T));
 	--m_curTIdx;
 	while (m_curTIdx < 0 && 0 != m_curChunkIdx)
 	{
 		--m_curChunkIdx;
-		m_pCurrentChunk = (*m_chunks)[m_curChunkIdx].chunkBeginning;
-		m_curChunkSize = (*m_chunks)[m_curChunkIdx].chunkSize;
+		m_pCurrentChunk = m_chunks->getChunks()[m_curChunkIdx].chunkBeginning;
+		m_curChunkSize = m_chunks->getChunks()[m_curChunkIdx].chunkSize;
 		m_curTIdx += m_curChunkSize;
 	}
 }

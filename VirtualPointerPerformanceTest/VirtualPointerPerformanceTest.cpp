@@ -39,7 +39,7 @@ int main()
             using stream = std::pair<int, int>;
             constexpr auto repeatsInside = 1;
             constexpr auto repeatsOutside = 1;
-            const auto depths = { 1, 2, 4 };
+            const auto depths = { /*1, 2, */4 };
         	const auto streamConstitutes = {
             	stream{5120, 1000000},
                 stream{51200, 100000},
